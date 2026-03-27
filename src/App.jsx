@@ -5,7 +5,12 @@ import CountyHealth from './components/CountyHealth'
 import HospitalQuality from './components/HospitalQuality'
 import CountyRanking from './components/CountyRanking'
 import AdvancedMap from './components/AdvancedMap'
+import ForecastEngine from './components/ForecastEngine'
+import PersonalRisk from './components/PersonalRisk'
+import EmployerDashboard from './components/EmployerDashboard'
 import Footer from './components/Footer'
+
+const NO_FOOTER = new Set(['map'])
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('find')
@@ -19,8 +24,11 @@ export default function App() {
         {activeTab === 'hospitals' && <HospitalQuality />}
         {activeTab === 'rankings'  && <CountyRanking />}
         {activeTab === 'map'       && <AdvancedMap />}
+        {activeTab === 'forecast'  && <ForecastEngine />}
+        {activeTab === 'risk'      && <PersonalRisk />}
+        {activeTab === 'employer'  && <EmployerDashboard />}
       </main>
-      {activeTab !== 'map' && <Footer />}
+      {!NO_FOOTER.has(activeTab) && <Footer />}
     </div>
   )
 }

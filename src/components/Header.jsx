@@ -6,6 +6,9 @@ const TABS = [
   { id: 'hospitals', label: 'Hospitals' },
   { id: 'rankings',  label: 'County Rankings' },
   { id: 'map',       label: '🗺️ Map View' },
+  { id: 'forecast',  label: '🔮 Forecast' },
+  { id: 'risk',      label: '👤 My Risk' },
+  { id: 'employer',  label: '🏢 Employer' },
 ]
 
 export default function Header({ activeTab, onTabChange }) {
@@ -28,7 +31,7 @@ export default function Header({ activeTab, onTabChange }) {
           </div>
 
           {/* Navigation tabs */}
-          <nav className="flex items-end h-full gap-1">
+          <nav className="flex items-end h-full gap-1 overflow-x-auto scrollbar-hide">
             {TABS.map(tab => (
               <button
                 key={tab.id}
