@@ -10,8 +10,13 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,8 +34,26 @@ jobs:
         run: |
           git config user.email "github-actions@github.com"
           git config user.name "GitHub Actions"
-          cd dist
-          git init
+
+          # Copy build output to a temp dir outside the repo
+          cp -r dist /tmp/dist-deploy
+
+          # Fetch or create the gh-pages branch
+          git fetch origin gh-pages:gh-pages 2>/dev/null || git checkout --orphan gh-pages
+
+          git checkout gh-pages
+
+          # Remove everything currently tracked
+          git rm -rf . --quiet 2>/dev/null || true
+
+          # Copy the new build in
+          cp -r /tmp/dist-deploy/. .
+
           git add -A
-          git commit -m "deploy"
-          git push --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:gh-pages
+
+          # Only commit if there are changes
+          git diff --staged --quiet && echo "No changes to deploy" && exit 0
+
+          git commit -m "deploy: ${{ github.sha }}"
+
+          git push origin gh-pages
