@@ -74,19 +74,22 @@ export default function App() {
           </span>
         </header>
 
-        {/* Page content */}
+        {/* Page content — footer lives inside scroll so it's only visible at the bottom */}
         <main className="flex-1 overflow-auto">
-          {activeTab === 'find'      && <FindCare />}
-          {activeTab === 'county'    && <CountyHealth />}
-          {activeTab === 'hospitals' && <HospitalQuality />}
-          {activeTab === 'rankings'  && <CountyRanking />}
-          {activeTab === 'map'       && <AdvancedMap />}
-          {activeTab === 'forecast'  && <ForecastEngine />}
-          {activeTab === 'risk'      && <PersonalRisk />}
-          {activeTab === 'employer'  && <EmployerDashboard />}
+          <div className="flex flex-col min-h-full">
+            <div className="flex-1">
+              {activeTab === 'find'      && <FindCare />}
+              {activeTab === 'county'    && <CountyHealth />}
+              {activeTab === 'hospitals' && <HospitalQuality />}
+              {activeTab === 'rankings'  && <CountyRanking />}
+              {activeTab === 'map'       && <AdvancedMap />}
+              {activeTab === 'forecast'  && <ForecastEngine />}
+              {activeTab === 'risk'      && <PersonalRisk />}
+              {activeTab === 'employer'  && <EmployerDashboard />}
+            </div>
+            {!NO_FOOTER.has(activeTab) && <Footer />}
+          </div>
         </main>
-
-        {!NO_FOOTER.has(activeTab) && <Footer />}
       </div>
     </div>
   )
