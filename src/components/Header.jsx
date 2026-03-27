@@ -2,8 +2,9 @@ import { Activity } from 'lucide-react'
 
 const TABS = [
   { id: 'find',      label: 'Find Care' },
-  { id: 'county',   label: 'County Health' },
+  { id: 'county',    label: 'County Health' },
   { id: 'hospitals', label: 'Hospitals' },
+  { id: 'rankings',  label: 'County Rankings' },
 ]
 
 export default function Header({ activeTab, onTabChange }) {
