@@ -5,6 +5,7 @@ const TABS = [
   { id: 'county',    label: 'County Health' },
   { id: 'hospitals', label: 'Hospitals' },
   { id: 'rankings',  label: 'County Rankings' },
+  { id: 'map',       label: '🗺️ Map View' },
 ]
 
 export default function Header({ activeTab, onTabChange }) {

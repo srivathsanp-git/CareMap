@@ -657,8 +657,8 @@ export function computeRankingScores(county) {
   const shortagePts   = (county.pcShortage + county.mhShortage + county.dentalShortage) * 6
   const accessScore   = Math.max(0, Math.min(100, densityPts - shortagePts + 30))
 
-  // Opportunity: high need + low access = highest investment priority
-  const opportunityScore = Math.max(0, Math.min(100, (needScore * 0.6) + ((100 - accessScore) * 0.4)))
+  // Opportunity: multiplicative — high need × low access = critical investment priority
+  const opportunityScore = Math.round(needScore * (1 - accessScore / 100))
 
   return {
     need:        Math.round(needScore),

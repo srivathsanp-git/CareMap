@@ -6,6 +6,10 @@ import NeedAccessScore from './NeedAccessScore'
 import SDOHProfile from './SDOHProfile'
 import ShortageIndicators from './ShortageIndicators'
 import AffordabilityCard from './AffordabilityCard'
+import OpportunityScore from './OpportunityScore'
+import BestNextAction from './BestNextAction'
+import MaternalHealth from './MaternalHealth'
+import CancerInsights from './CancerInsights'
 
 const SORTED = [...iowaCounties].sort((a, b) => a.name.localeCompare(b.name))
 
@@ -14,6 +18,9 @@ const TABS = [
   { id: 'sdoh',         label: '🏘️ Social Factors' },
   { id: 'access',       label: '🏥 Access & Shortage' },
   { id: 'affordability',label: '💰 Affordability' },
+  { id: 'opportunity',  label: '🎯 Opportunity' },
+  { id: 'mch',          label: '👶 Maternal & Child' },
+  { id: 'cancer',       label: '🧬 Cancer Insights' },
 ]
 
 function estimateProviderAccess(county) {
@@ -249,6 +256,14 @@ export default function CountyHealth() {
                 {activeTab === 'sdoh'         && <SDOHProfile         county={selected} />}
                 {activeTab === 'access'       && <ShortageIndicators  county={selected} />}
                 {activeTab === 'affordability'&& <AffordabilityCard   county={selected} />}
+                {activeTab === 'opportunity'  && (
+                  <div className="space-y-5">
+                    <OpportunityScore county={selected} />
+                    <BestNextAction   county={selected} />
+                  </div>
+                )}
+                {activeTab === 'mch'    && <MaternalHealth county={selected} />}
+                {activeTab === 'cancer' && <CancerInsights county={selected} />}
               </div>
             </div>
           </div>

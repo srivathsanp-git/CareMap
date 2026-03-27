@@ -4,6 +4,7 @@ import FindCare from './components/FindCare'
 import CountyHealth from './components/CountyHealth'
 import HospitalQuality from './components/HospitalQuality'
 import CountyRanking from './components/CountyRanking'
+import AdvancedMap from './components/AdvancedMap'
 import Footer from './components/Footer'
 
 export default function App() {
@@ -17,8 +18,9 @@ export default function App() {
         {activeTab === 'county'    && <CountyHealth />}
         {activeTab === 'hospitals' && <HospitalQuality />}
         {activeTab === 'rankings'  && <CountyRanking />}
+        {activeTab === 'map'       && <AdvancedMap />}
       </main>
-      <Footer />
+      {activeTab !== 'map' && <Footer />}
     </div>
   )
 }
