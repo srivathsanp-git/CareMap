@@ -71,14 +71,21 @@ export default function ProviderList({ providers, loading, error, searchMeta, se
     <div className="flex flex-col h-full">
       {/* Header */}
       {searchMeta && (
-        <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
+        <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0 space-y-2">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-800">
-                {loading ? 'Searching…' : `${searchMeta.count} provider${searchMeta.count !== 1 ? 's' : ''} found`}
+                {loading
+                  ? 'Searching…'
+                  : `${searchMeta.count} provider${searchMeta.count !== 1 ? 's' : ''} found`}
               </p>
               <p className="text-xs text-slate-400 mt-0.5">
                 {searchMeta.specialty} · ZIP {searchMeta.zip}
+                {!loading && searchMeta.totalInZip > 0 && (
+                  <span className="ml-1">
+                    · {searchMeta.totalInZip} total in ZIP
+                  </span>
+                )}
               </p>
             </div>
             {!loading && (
@@ -87,6 +94,14 @@ export default function ProviderList({ providers, loading, error, searchMeta, se
               </span>
             )}
           </div>
+          {/* Warn when API capped at 500 — some specialty matches may be missing */}
+          {!loading && searchMeta.apiCapped && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              ⚠️ This ZIP has {searchMeta.totalInZip}+ providers — the NPI API returns at most 500 per
+              request. Some {searchMeta.specialty} providers in this area may not appear.
+              Try adjacent ZIP codes to find more.
+            </div>
+          )}
         </div>
       )}
 

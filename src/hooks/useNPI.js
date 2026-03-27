@@ -59,7 +59,10 @@ async function fetchAllInZip(zip) {
   const res = await fetch(`${NLM_BASE}?${params}`)
   if (!res.ok) throw new Error(`NLM API error: ${res.status}`)
   const data = await res.json()
-  return data[3] || []  // array of field arrays
+  return {
+    rows:       data[3] || [],
+    totalInZip: data[0] || 0,  // total records in NPI database for this ZIP (before our 500 cap)
+  }
 }
 
 function rowToProvider(row) {
@@ -91,16 +94,21 @@ export function useNPI() {
     setSearchMeta(null)
 
     try {
-      const rows   = await fetchAllInZip(zip)
+      const { rows, totalInZip } = await fetchAllInZip(zip)
       const types  = new Set(SPECIALTY_TYPES[specialty] || SPECIALTY_TYPES['Primary Care'])
       const filtered = rows
         .filter(row => types.has(row[2]))   // row[2] is provider_type
         .map(rowToProvider)
         .filter(p => p.name)
-        .slice(0, 40)
 
       setProviders(filtered)
-      setSearchMeta({ zip, specialty, count: filtered.length })
+      setSearchMeta({
+        zip,
+        specialty,
+        count:      filtered.length,
+        totalInZip,
+        apiCapped:  totalInZip > 500,  // true when NLM hit its 500-record cap before our filter
+      })
     } catch (e) {
       setError('Could not load providers. Please try again.')
       console.error(e)
