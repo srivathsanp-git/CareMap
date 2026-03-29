@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Trophy, TrendingUp, Target, ChevronUp, ChevronDown, Search } from 'lucide-react'
 import { iowaCounties, computeRankingScores, needLabel, accessLabel, opportunityLabel } from '../data/iowaCounties'
+import { useAppState } from '../context/StateContext'
+import { fetchCountyPlaces } from '../utils/cdcPlaces'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -38,7 +40,7 @@ function ScoreCell({ score, labelFn, barColor }) {
   )
 }
 
-export default function CountyRanking() {
+function IowaCountyRanking() {
   const [sortDim,   setSortDim]   = useState('opportunity')
   const [sortAsc,   setSortAsc]   = useState(false)
   const [search,    setSearch]    = useState('')
@@ -258,4 +260,165 @@ export default function CountyRanking() {
       </div>
     </div>
   )
+}
+
+// ── National rankings — CDC PLACES composite score ───────────────────────────
+function nationalNeedScore(d) {
+  // 0-100: blend diabetes + obesity + smoking + mental health + uninsured
+  const diabetes  = Math.min((d.DIABETES  || 0) / 15 * 30, 30)
+  const obesity   = Math.min((d.OBESITY   || 0) / 42 * 25, 25)
+  const smoking   = Math.min((d.CSMOKING  || 0) / 25 * 20, 20)
+  const mhlth     = Math.min((d.MHLTH     || 0) / 20 * 15, 15)
+  const uninsured = Math.min((d.ACCESS2   || 0) / 20 * 10, 10)
+  return Math.round(diabetes + obesity + smoking + mhlth + uninsured)
+}
+
+function NationalCountyRanking({ state }) {
+  const [countyMap, setCountyMap] = useState(null)
+  const [loading,   setLoading]   = useState(false)
+  const [sortAsc,   setSortAsc]   = useState(false)
+  const [search,    setSearch]    = useState('')
+
+  useEffect(() => {
+    setLoading(true)
+    fetchCountyPlaces(state.abbr)
+      .then(setCountyMap)
+      .finally(() => setLoading(false))
+  }, [state.abbr])
+
+  const ranked = useMemo(() => {
+    if (!countyMap) return []
+    return Object.entries(countyMap)
+      .map(([name, d]) => ({ name, ...d, need: nationalNeedScore(d) }))
+      .sort((a, b) => sortAsc ? a.need - b.need : b.need - a.need)
+      .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
+  }, [countyMap, sortAsc, search])
+
+  const top5 = useMemo(() => {
+    if (!countyMap) return []
+    return Object.entries(countyMap)
+      .map(([name, d]) => ({ name, need: nationalNeedScore(d) }))
+      .sort((a, b) => b.need - a.need)
+      .slice(0, 5)
+  }, [countyMap])
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="border-b border-border bg-card px-6 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-2 mb-1">
+            <Trophy className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-bold">County Rankings — {state.name}</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Counties ranked by health need score (CDC PLACES 2023).
+            <span className="ml-2 text-amber-600 font-medium">Full rankings with SDOH + access data available for Iowa.</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-5">
+        {loading && (
+          <div className="text-center py-20">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mb-3" />
+            <p className="text-sm text-muted-foreground">Loading {state.name} county data…</p>
+          </div>
+        )}
+
+        {!loading && countyMap && (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Highest Health Need
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  {top5.map((c, i) => (
+                    <div key={c.name} className="flex items-center justify-between">
+                      <span className="text-sm text-foreground">
+                        <span className="text-xs text-muted-foreground mr-1.5">#{i + 1}</span>
+                        {c.name}
+                      </span>
+                      <span className="text-sm font-extrabold text-red-600">{c.need}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="py-4 px-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>Need Score (0–100):</strong> Weighted blend of diabetes, obesity, smoking,
+                    poor mental health, and uninsured rate from CDC PLACES 2023.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <div className="px-5 py-4 border-b border-border flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+                <button
+                  onClick={() => setSortAsc(!sortAsc)}
+                  className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                >
+                  Sort by Need {sortAsc ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                <div className="relative w-full sm:w-48">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter counties…" className="pl-8" />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-4 py-3 w-10">#</th>
+                      <th className="text-left px-4 py-3">County</th>
+                      <th className="text-right px-4 py-3">Need</th>
+                      <th className="text-right px-4 py-3">Diabetes</th>
+                      <th className="text-right px-4 py-3">Obesity</th>
+                      <th className="text-right px-4 py-3">Uninsured</th>
+                      <th className="text-right px-4 py-3 hidden md:table-cell">Mental Health</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ranked.map((c, idx) => (
+                      <tr key={c.name} className={['border-b border-border hover:bg-muted/40 transition-colors', idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'].join(' ')}>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{idx + 1}</td>
+                        <td className="px-4 py-3 font-semibold text-foreground">{c.name}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Progress value={c.need} className="h-1.5 w-16" indicatorClassName={c.need >= 65 ? 'bg-red-500' : c.need >= 45 ? 'bg-orange-400' : 'bg-green-400'} />
+                            <span className="text-xs font-bold w-5">{c.need}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs">{c.DIABETES != null ? `${c.DIABETES.toFixed(1)}%` : '—'}</td>
+                        <td className="px-4 py-3 text-right text-xs">{c.OBESITY  != null ? `${c.OBESITY.toFixed(1)}%`  : '—'}</td>
+                        <td className="px-4 py-3 text-right text-xs">{c.ACCESS2  != null ? `${c.ACCESS2.toFixed(1)}%`  : '—'}</td>
+                        <td className="px-4 py-3 text-right text-xs hidden md:table-cell">{c.MHLTH != null ? `${c.MHLTH.toFixed(1)}%` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-3 border-t border-border">
+                <p className="text-xs text-muted-foreground">Showing {ranked.length} of {Object.keys(countyMap).length} counties · Source: CDC PLACES 2023</p>
+              </div>
+            </Card>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Dispatcher ───────────────────────────────────────────────────────────────
+export default function CountyRanking() {
+  const { selectedState } = useAppState()
+  return selectedState.abbr === 'IA'
+    ? <IowaCountyRanking />
+    : <NationalCountyRanking state={selectedState} />
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Menu } from 'lucide-react'
 import { Activity } from 'lucide-react'
+import { StateProvider, useAppState } from '@/context/StateContext'
 import Sidebar from '@/components/Sidebar'
 import FindCare from '@/components/FindCare'
 import CountyHealth from '@/components/CountyHealth'
@@ -10,9 +11,10 @@ import AdvancedMap from '@/components/AdvancedMap'
 import ForecastEngine from '@/components/ForecastEngine'
 import PersonalRisk from '@/components/PersonalRisk'
 import EmployerDashboard from '@/components/EmployerDashboard'
+import CompareStates from '@/components/CompareStates'
 import Footer from '@/components/Footer'
 
-const NO_FOOTER = new Set(['map'])
+const NO_FOOTER = new Set(['map', 'compare'])
 
 const PAGE_TITLES = {
   find:      'Find Care',
@@ -23,11 +25,13 @@ const PAGE_TITLES = {
   forecast:  'Forecast & Alerts',
   risk:      'My Risk Profile',
   employer:  'Employer Dashboard',
+  compare:   'Compare States',
 }
 
-export default function App() {
+function AppInner() {
   const [activeTab,    setActiveTab]    = useState('find')
   const [sidebarOpen,  setSidebarOpen]  = useState(false)
+  const { selectedState } = useAppState()
 
   const handleTabChange = (tab) => {
     setActiveTab(tab)
@@ -66,7 +70,7 @@ export default function App() {
               <Activity className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
             </div>
             <span className="font-bold text-sm text-foreground">
-              CareMap <span className="text-primary">Iowa</span>
+              CareMap <span className="text-primary">{selectedState.abbr === 'IA' ? 'Iowa' : selectedState.abbr}</span>
             </span>
           </div>
           <span className="ml-auto text-xs font-medium text-muted-foreground">
@@ -86,11 +90,20 @@ export default function App() {
               {activeTab === 'forecast'  && <ForecastEngine />}
               {activeTab === 'risk'      && <PersonalRisk />}
               {activeTab === 'employer'  && <EmployerDashboard />}
+              {activeTab === 'compare'   && <CompareStates />}
             </div>
             {!NO_FOOTER.has(activeTab) && <Footer />}
           </div>
         </main>
       </div>
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <StateProvider>
+      <AppInner />
+    </StateProvider>
   )
 }

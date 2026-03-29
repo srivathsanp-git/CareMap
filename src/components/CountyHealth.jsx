@@ -15,6 +15,8 @@ import OpportunityScore from './OpportunityScore'
 import BestNextAction from './BestNextAction'
 import MaternalHealth from './MaternalHealth'
 import CancerInsights from './CancerInsights'
+import { useAppState } from '../context/StateContext'
+import { fetchCountyPlaces, metricColor } from '../utils/cdcPlaces'
 
 const SORTED = [...iowaCounties].sort((a, b) => a.name.localeCompare(b.name))
 
@@ -39,7 +41,7 @@ function estimateProviderAccess(county) {
 
 const QUICK_PICKS = ['Polk', 'Johnson', 'Story', 'Appanoose', 'Decatur', 'Woodbury', 'Dallas', 'Ringgold']
 
-export default function CountyHealth() {
+function IowaCountyHealth() {
   const [selected,   setSelected]   = useState(null)
   const [open,       setOpen]       = useState(false)
   const [query,      setQuery]      = useState('')
@@ -277,4 +279,197 @@ export default function CountyHealth() {
       </div>
     </div>
   )
+}
+
+// ── National county health — CDC PLACES data for any state ──────────────────
+const NAT_METRICS = [
+  { id: 'DIABETES',   label: 'Diabetes'           },
+  { id: 'OBESITY',    label: 'Obesity'             },
+  { id: 'CSMOKING',   label: 'Smoking'             },
+  { id: 'MHLTH',      label: 'Poor Mental Health'  },
+  { id: 'BPHIGH',     label: 'High Blood Pressure' },
+  { id: 'ACCESS2',    label: 'Uninsured'           },
+  { id: 'CHD',        label: 'Heart Disease'       },
+  { id: 'CASTHMA',    label: 'Asthma'              },
+  { id: 'DEPRESSION', label: 'Depression'          },
+]
+
+function NationalCountyHealth({ state }) {
+  const [countyMap,  setCountyMap]  = useState(null)
+  const [selected,   setSelected]   = useState(null)
+  const [open,       setOpen]       = useState(false)
+  const [query,      setQuery]      = useState('')
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState(null)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    setSelected(null)
+    setCountyMap(null)
+    setLoading(true)
+    fetchCountyPlaces(state.abbr)
+      .then(setCountyMap)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [state.abbr])
+
+  useEffect(() => {
+    function handler(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const sortedCounties = countyMap
+    ? Object.entries(countyMap).sort((a, b) => a[0].localeCompare(b[0]))
+    : []
+
+  const filtered = sortedCounties.filter(([name]) =>
+    name.toLowerCase().includes(query.toLowerCase())
+  )
+
+  const selData = selected ? countyMap?.[selected] : null
+
+  // State-level averages for comparison
+  const stateAvgs = countyMap
+    ? NAT_METRICS.reduce((acc, m) => {
+        const vals = sortedCounties.map(([, d]) => d[m.id]).filter(v => v != null)
+        acc[m.id] = vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null
+        return acc
+      }, {})
+    : {}
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="border-b border-border bg-card px-6 py-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center gap-2 mb-1">
+            <BarChart2 className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-bold">County Health Profile — {state.name}</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            CDC PLACES 2023 health metrics for {state.name} counties.
+            <span className="ml-2 text-amber-600 font-medium">Enhanced data (SDOH, access, MCH) available for Iowa.</span>
+          </p>
+
+          <div ref={dropdownRef} className="relative w-full sm:w-72">
+            <button
+              onClick={() => setOpen(!open)}
+              disabled={loading}
+              className="flex w-full items-center justify-between gap-2 rounded-lg border-2 border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
+            >
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                {loading ? 'Loading counties…' : selected ? `${selected} County` : 'Select a county…'}
+              </div>
+              <ChevronDown className={['h-4 w-4 text-muted-foreground transition-transform', open ? 'rotate-180' : ''].join(' ')} />
+            </button>
+
+            {open && countyMap && (
+              <div className="absolute top-full mt-1 left-0 right-0 z-50 rounded-xl border border-border bg-card shadow-xl overflow-hidden">
+                <div className="p-2 border-b border-border">
+                  <Input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search county…" />
+                </div>
+                <div className="max-h-56 overflow-y-auto">
+                  {filtered.map(([name, d]) => (
+                    <button
+                      key={name}
+                      onClick={() => { setSelected(name); setOpen(false); setQuery('') }}
+                      className={['w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-colors flex items-center justify-between', selected === name ? 'bg-primary/5 text-primary font-semibold' : 'text-foreground'].join(' ')}
+                    >
+                      <span>{name}</span>
+                      <span className="text-xs text-muted-foreground">{d.pop?.toLocaleString()}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        {error && (
+          <Card className="border-destructive/50 bg-destructive/5 p-6 text-center">
+            <p className="text-destructive">Failed to load data: {error}</p>
+          </Card>
+        )}
+
+        {!selected && !loading && !error && (
+          <div className="text-center py-16">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+              <MapPin className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-lg font-medium text-foreground mb-2">Select a county to view its health profile</p>
+            <p className="text-sm text-muted-foreground">{state.name} · {sortedCounties.length} counties · CDC PLACES data</p>
+          </div>
+        )}
+
+        {selData && (
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="text-2xl font-extrabold mb-1">{selected} County</h3>
+              <p className="text-sm text-muted-foreground mb-5">
+                Pop: <strong className="text-foreground">{selData.pop?.toLocaleString() || '—'}</strong>
+                &ensp;·&ensp;FIPS: {selData.fips || '—'}
+                &ensp;·&ensp;State: {state.name}
+              </p>
+
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/50 border-b border-border text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <th className="text-left px-5 py-3">Metric</th>
+                      <th className="text-right px-5 py-3">{selected}</th>
+                      <th className="text-right px-5 py-3">{state.abbr} Avg</th>
+                      <th className="text-right px-5 py-3">Diff</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {NAT_METRICS.map((m, i) => {
+                      const val = selData[m.id]
+                      const avg = stateAvgs[m.id]
+                      const diff = val != null && avg != null ? val - avg : null
+                      return (
+                        <tr key={m.id} className={['border-t border-border', i % 2 === 0 ? '' : 'bg-muted/20'].join(' ')}>
+                          <td className="px-5 py-3 font-medium text-foreground">{m.label}</td>
+                          <td className="px-5 py-3 text-right">
+                            {val != null ? (
+                              <span className="font-bold" style={{ color: metricColor(val, m.id) }}>
+                                {val.toFixed(1)}%
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="px-5 py-3 text-right text-muted-foreground">
+                            {avg != null ? `${avg.toFixed(1)}%` : '—'}
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            {diff != null ? (
+                              <Badge variant={diff > 0.3 ? 'danger' : diff < -0.3 ? 'success' : 'secondary'}>
+                                {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
+                              </Badge>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">Source: CDC PLACES 2023</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Dispatcher ───────────────────────────────────────────────────────────────
+export default function CountyHealth() {
+  const { selectedState } = useAppState()
+  return selectedState.abbr === 'IA'
+    ? <IowaCountyHealth />
+    : <NationalCountyHealth state={selectedState} />
 }
