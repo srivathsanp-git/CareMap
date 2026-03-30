@@ -1,9 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Trophy, TrendingUp, Target, ChevronUp, ChevronDown, Search } from 'lucide-react'
 import { iowaCounties, computeRankingScores, needLabel, accessLabel, opportunityLabel } from '../data/iowaCounties'
-import { useAppState } from '../context/StateContext'
-import { fetchCountyPlaces } from '../utils/cdcPlaces'
-import { fetchCountyACS, computeNationalNeedScore, computeNationalAccessScore, computeNationalOpportunityScore } from '../utils/censusACS'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -473,10 +470,6 @@ function NationalCountyRanking({ state }) {
   )
 }
 
-// ── Dispatcher ───────────────────────────────────────────────────────────────
 export default function CountyRanking() {
-  const { selectedState } = useAppState()
-  return selectedState.abbr === 'IA'
-    ? <IowaCountyRanking />
-    : <NationalCountyRanking state={selectedState} />
+  return <IowaCountyRanking />
 }

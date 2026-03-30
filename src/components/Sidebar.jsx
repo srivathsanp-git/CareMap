@@ -1,11 +1,10 @@
 import { Activity, Search, BarChart2, Building2, Trophy, Map, TrendingUp, User, Briefcase, Globe, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
-import { useAppState } from '../context/StateContext'
 
 const NAV_GROUPS = [
   {
-    label: 'Care',
+    label: 'Care — Iowa',
     items: [
       { id: 'find',      label: 'Find Care',        icon: Search      },
       { id: 'county',    label: 'County Health',    icon: BarChart2   },
@@ -13,7 +12,7 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Analytics',
+    label: 'Analytics — Iowa',
     items: [
       { id: 'rankings',  label: 'County Rankings',  icon: Trophy      },
       { id: 'map',       label: 'Map View',          icon: Map         },
@@ -21,7 +20,7 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Personal',
+    label: 'Personal — Iowa',
     items: [
       { id: 'risk',     label: 'My Risk Profile',   icon: User        },
       { id: 'employer', label: 'Employer Dashboard', icon: Briefcase   },
@@ -36,13 +35,8 @@ const NAV_GROUPS = [
 ]
 
 export default function Sidebar({ activeTab, onTabChange, open, onClose }) {
-  const { selectedState, setSelectedState, US_STATES } = useAppState()
-
-  const isIowa = selectedState.abbr === 'IA'
-
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className={cn(
         'fixed inset-y-0 left-0 z-50 flex w-56 flex-col bg-sidebar border-r border-sidebar-border transition-transform duration-200 lg:static lg:translate-x-0',
         open ? 'translate-x-0' : '-translate-x-full'
@@ -54,43 +48,15 @@ export default function Sidebar({ activeTab, onTabChange, open, onClose }) {
           </div>
           <div className="leading-tight">
             <span className="text-sm font-bold text-white">CareMap</span>
-            <span className="text-sm font-bold text-primary"> {isIowa ? 'Iowa' : selectedState.abbr}</span>
+            <span className="text-sm font-bold text-primary"> Iowa</span>
           </div>
-          {/* Mobile close */}
           <button onClick={onClose} className="ml-auto text-sidebar-foreground hover:text-white lg:hidden">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* State selector */}
-        <div className="px-3 pt-3 pb-1">
-          <label className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50 px-1 block mb-1">
-            Active State
-          </label>
-          <select
-            value={selectedState.abbr}
-            onChange={e => {
-              const st = US_STATES.find(s => s.abbr === e.target.value)
-              if (st) setSelectedState(st)
-            }}
-            className="w-full rounded-md bg-white/8 border border-sidebar-border text-white text-xs px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary appearance-none cursor-pointer"
-            style={{ background: 'rgba(255,255,255,0.06)' }}
-          >
-            {US_STATES.map(s => (
-              <option key={s.abbr} value={s.abbr} style={{ background: '#1e293b', color: '#f1f5f9' }}>
-                {s.abbr} — {s.name}
-              </option>
-            ))}
-          </select>
-          {!isIowa && (
-            <p className="text-[10px] text-amber-400/80 mt-1 px-1">
-              Enhanced data available for Iowa
-            </p>
-          )}
-        </div>
-
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-5">
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">
           {NAV_GROUPS.map((group, gi) => (
             <div key={group.label}>
               <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/50">

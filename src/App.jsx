@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Menu } from 'lucide-react'
 import { Activity } from 'lucide-react'
-import { StateProvider, useAppState } from '@/context/StateContext'
+import { StateProvider } from '@/context/StateContext'
 import Sidebar from '@/components/Sidebar'
 import FindCare from '@/components/FindCare'
 import CountyHealth from '@/components/CountyHealth'
@@ -31,7 +31,6 @@ const PAGE_TITLES = {
 function AppInner() {
   const [activeTab,    setActiveTab]    = useState('find')
   const [sidebarOpen,  setSidebarOpen]  = useState(false)
-  const { selectedState } = useAppState()
 
   const handleTabChange = (tab) => {
     setActiveTab(tab)
@@ -70,7 +69,7 @@ function AppInner() {
               <Activity className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
             </div>
             <span className="font-bold text-sm text-foreground">
-              CareMap <span className="text-primary">{selectedState.abbr === 'IA' ? 'Iowa' : selectedState.abbr}</span>
+              CareMap <span className="text-primary">Iowa</span>
             </span>
           </div>
           <span className="ml-auto text-xs font-medium text-muted-foreground">
