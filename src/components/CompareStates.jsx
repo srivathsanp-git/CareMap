@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Globe, BarChart2, Map, AlertTriangle, ChevronUp, ChevronDown, Search } from 'lucide-react'
-import { MapContainer, TileLayer, GeoJSON, Tooltip } from 'react-leaflet'
+import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -226,27 +226,29 @@ function HeadToHead({ data }) {
   )
 }
 
+// GeoJSON property name → state abbr (covers common variations)
+const GEO_NAME_TO_ABBR = {
+  ...NAME_TO_ABBR,
+  'District of Columbia': 'DC',
+}
+
 function NationalMap({ data, measureId, onMeasureChange }) {
-  const [geoJson, setGeoJson]   = useState(null)
-  const [hovered, setHovered]   = useState(null)
-  const geoRef                  = useRef(null)
+  const [geoJson, setGeoJson] = useState(null)
+  const [geoError, setGeoError] = useState(null)
+  const [hovered, setHovered] = useState(null)
 
   useEffect(() => {
-    fetch('https://cdn.jsdelivr.net/gh/PublicaMundi/MappingAPI@master/data/geojson/us-states.json')
-      .then(r => r.json())
+    // Use the raw GitHub URL for the US states GeoJSON (reliable, widely used)
+    fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
       .then(setGeoJson)
-      .catch(() => {})
+      .catch(e => setGeoError(e.message))
   }, [])
 
-  // Re-style when measure or data changes
-  useEffect(() => {
-    if (geoRef.current) {
-      geoRef.current.setStyle(featureStyle)
-    }
-  }, [measureId, data]) // eslint-disable-line
-
   function featureStyle(feature) {
-    const abbr  = NAME_TO_ABBR[feature.properties.NAME]
+    // The GeoJSON uses 'name' (lowercase) in this dataset
+    const stateName = feature.properties.name || feature.properties.NAME || ''
+    const abbr  = GEO_NAME_TO_ABBR[stateName]
     const value = abbr && data[abbr] ? data[abbr][measureId] : null
     return {
       fillColor:   choroColor(value, measureId),
@@ -257,11 +259,12 @@ function NationalMap({ data, measureId, onMeasureChange }) {
   }
 
   function onEachFeature(feature, layer) {
+    const stateName = feature.properties.name || feature.properties.NAME || ''
+    const abbr  = GEO_NAME_TO_ABBR[stateName]
+    const value = abbr && data[abbr] ? data[abbr][measureId] : null
     layer.on({
       mouseover: () => {
-        const abbr  = NAME_TO_ABBR[feature.properties.NAME]
-        const value = abbr && data[abbr] ? data[abbr][measureId] : null
-        setHovered({ name: feature.properties.NAME, abbr, value })
+        setHovered({ name: stateName, abbr, value })
         layer.setStyle({ weight: 3, fillOpacity: 0.9 })
       },
       mouseout: () => {
@@ -312,7 +315,11 @@ function NationalMap({ data, measureId, onMeasureChange }) {
       )}
 
       <div className="rounded-xl overflow-hidden border border-border" style={{ height: '480px' }}>
-        {geoJson ? (
+        {geoError ? (
+          <div className="h-full flex items-center justify-center bg-muted/20">
+            <p className="text-sm text-destructive">Failed to load map boundaries: {geoError}</p>
+          </div>
+        ) : geoJson ? (
           <MapContainer
             center={[39.5, -98.35]}
             zoom={4}
@@ -324,16 +331,18 @@ function NationalMap({ data, measureId, onMeasureChange }) {
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
             />
             <GeoJSON
-              key={measureId}
+              key={`${measureId}-${Object.keys(data).length}`}
               data={geoJson}
               style={featureStyle}
               onEachFeature={onEachFeature}
-              ref={geoRef}
             />
           </MapContainer>
         ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground bg-muted/20">
-            Loading map…
+            <div className="text-center">
+              <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent mb-2" />
+              <p className="text-sm">Loading map boundaries…</p>
+            </div>
           </div>
         )}
       </div>
