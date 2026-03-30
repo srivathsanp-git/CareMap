@@ -84,3 +84,15 @@
   border-bottom: 2px solid #1d4ed8;
   color: #1d4ed8;
 }
+
+/* National Map — Leaflet tooltip override */
+.caremap-tooltip {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  padding: 8px 12px;
+}
+.caremap-tooltip::before {
+  display: none;
+}

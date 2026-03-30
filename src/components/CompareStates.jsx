@@ -235,10 +235,8 @@ const GEO_NAME_TO_ABBR = {
 function NationalMap({ data, measureId, onMeasureChange }) {
   const [geoJson, setGeoJson] = useState(null)
   const [geoError, setGeoError] = useState(null)
-  const [hovered, setHovered] = useState(null)
 
   useEffect(() => {
-    // Use the raw GitHub URL for the US states GeoJSON (reliable, widely used)
     fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json() })
       .then(setGeoJson)
@@ -246,7 +244,6 @@ function NationalMap({ data, measureId, onMeasureChange }) {
   }, [])
 
   function featureStyle(feature) {
-    // The GeoJSON uses 'name' (lowercase) in this dataset
     const stateName = feature.properties.name || feature.properties.NAME || ''
     const abbr  = GEO_NAME_TO_ABBR[stateName]
     const value = abbr && data[abbr] ? data[abbr][measureId] : null
@@ -262,15 +259,20 @@ function NationalMap({ data, measureId, onMeasureChange }) {
     const stateName = feature.properties.name || feature.properties.NAME || ''
     const abbr  = GEO_NAME_TO_ABBR[stateName]
     const value = abbr && data[abbr] ? data[abbr][measureId] : null
+    const metricLabel = MEASURE_META[measureId]?.label || measureId
+    const tooltipHtml = `
+      <div style="font-family:sans-serif;line-height:1.4;min-width:140px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:3px">${stateName}</div>
+        <div style="font-size:12px;color:#6b7280">${metricLabel}</div>
+        <div style="font-size:16px;font-weight:800;margin-top:2px;color:${value != null ? choroColor(value, measureId) : '#9ca3af'}">
+          ${value != null ? value.toFixed(1) + '%' : 'No data'}
+        </div>
+      </div>
+    `
+    layer.bindTooltip(tooltipHtml, { sticky: true, opacity: 0.97, className: 'caremap-tooltip' })
     layer.on({
-      mouseover: () => {
-        setHovered({ name: stateName, abbr, value })
-        layer.setStyle({ weight: 3, fillOpacity: 0.9 })
-      },
-      mouseout: () => {
-        setHovered(null)
-        layer.setStyle(featureStyle(feature))
-      },
+      mouseover: () => layer.setStyle({ weight: 3, fillOpacity: 0.95 }),
+      mouseout:  () => layer.setStyle(featureStyle(feature)),
     })
   }
 
@@ -303,18 +305,7 @@ function NationalMap({ data, measureId, onMeasureChange }) {
         <span>No data</span>
       </div>
 
-      {/* Hovered tooltip */}
-      {hovered && (
-        <div className="inline-flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2 shadow text-sm">
-          <span className="font-bold text-foreground">{hovered.name}</span>
-          <Badge variant={hovered.value != null ? valueBadgeVariant(hovered.value, measureId) : 'secondary'}>
-            {hovered.value != null ? `${hovered.value.toFixed(1)}%` : 'No data'}
-          </Badge>
-          <span className="text-muted-foreground">{MEASURE_META[measureId].label}</span>
-        </div>
-      )}
-
-      <div className="rounded-xl overflow-hidden border border-border" style={{ height: '480px' }}>
+      <div className="rounded-xl overflow-hidden border border-border" style={{ height: '520px' }}>
         {geoError ? (
           <div className="h-full flex items-center justify-center bg-muted/20">
             <p className="text-sm text-destructive">Failed to load map boundaries: {geoError}</p>
