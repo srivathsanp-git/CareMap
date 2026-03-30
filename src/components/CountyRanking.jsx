@@ -3,6 +3,7 @@ import { Trophy, TrendingUp, Target, ChevronUp, ChevronDown, Search } from 'luci
 import { iowaCounties, computeRankingScores, needLabel, accessLabel, opportunityLabel } from '../data/iowaCounties'
 import { useAppState } from '../context/StateContext'
 import { fetchCountyPlaces } from '../utils/cdcPlaces'
+import { fetchCountyACS, computeNationalNeedScore, computeNationalAccessScore, computeNationalOpportunityScore } from '../utils/censusACS'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -262,45 +263,55 @@ function IowaCountyRanking() {
   )
 }
 
-// ── National rankings — CDC PLACES composite score ───────────────────────────
-function nationalNeedScore(d) {
-  // 0-100: blend diabetes + obesity + smoking + mental health + uninsured
-  const diabetes  = Math.min((d.DIABETES  || 0) / 15 * 30, 30)
-  const obesity   = Math.min((d.OBESITY   || 0) / 42 * 25, 25)
-  const smoking   = Math.min((d.CSMOKING  || 0) / 25 * 20, 20)
-  const mhlth     = Math.min((d.MHLTH     || 0) / 20 * 15, 15)
-  const uninsured = Math.min((d.ACCESS2   || 0) / 20 * 10, 10)
-  return Math.round(diabetes + obesity + smoking + mhlth + uninsured)
-}
-
+// ── National rankings — CDC PLACES + ACS composite scores ────────────────────
 function NationalCountyRanking({ state }) {
   const [countyMap, setCountyMap] = useState(null)
+  const [acsMap,    setAcsMap]    = useState(null)
   const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState(null)
+  const [sortDim,   setSortDim]   = useState('opportunity')
   const [sortAsc,   setSortAsc]   = useState(false)
   const [search,    setSearch]    = useState('')
 
   useEffect(() => {
     setLoading(true)
-    fetchCountyPlaces(state.abbr)
-      .then(setCountyMap)
+    setError(null)
+    Promise.all([
+      fetchCountyPlaces(state.abbr),
+      fetchCountyACS(state.fips),
+    ])
+      .then(([places, acs]) => { setCountyMap(places); setAcsMap(acs) })
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }, [state.abbr])
+  }, [state.abbr, state.fips])
 
   const ranked = useMemo(() => {
     if (!countyMap) return []
     return Object.entries(countyMap)
-      .map(([name, d]) => ({ name, ...d, need: nationalNeedScore(d) }))
-      .sort((a, b) => sortAsc ? a.need - b.need : b.need - a.need)
+      .map(([name, d]) => {
+        const acs  = acsMap?.[name] || {}
+        const need = computeNationalNeedScore(d, acs)
+        const access = computeNationalAccessScore(d, acs, d.pop)
+        const opportunity = computeNationalOpportunityScore(need, access)
+        return { name, ...d, acs, need, access, opportunity }
+      })
       .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
-  }, [countyMap, sortAsc, search])
+      .sort((a, b) => sortAsc ? a[sortDim] - b[sortDim] : b[sortDim] - a[sortDim])
+  }, [countyMap, acsMap, sortDim, sortAsc, search])
 
-  const top5 = useMemo(() => {
-    if (!countyMap) return []
-    return Object.entries(countyMap)
-      .map(([name, d]) => ({ name, need: nationalNeedScore(d) }))
-      .sort((a, b) => b.need - a.need)
-      .slice(0, 5)
-  }, [countyMap])
+  const top5opp  = useMemo(() => [...(ranked || [])].sort((a, b) => b.opportunity - a.opportunity).slice(0, 5), [ranked])
+  const top5need = useMemo(() => [...(ranked || [])].sort((a, b) => b.need        - a.need       ).slice(0, 5), [ranked])
+
+  const SORT_DIMS = [
+    { id: 'opportunity', label: 'Opportunity' },
+    { id: 'need',        label: 'Need'         },
+    { id: 'access',      label: 'Access'       },
+  ]
+
+  function toggleSort(dim) {
+    if (sortDim === dim) setSortAsc(!sortAsc)
+    else { setSortDim(dim); setSortAsc(false) }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -311,8 +322,8 @@ function NationalCountyRanking({ state }) {
             <h2 className="text-xl font-bold">County Rankings — {state.name}</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Counties ranked by health need score (CDC PLACES 2023).
-            <span className="ml-2 text-amber-600 font-medium">Full rankings with SDOH + access data available for Iowa.</span>
+            All counties ranked by composite scores — health need, care access, and investment opportunity.
+            Data: CDC PLACES 2023 + Census ACS 2022.
           </p>
         </div>
       </div>
@@ -325,46 +336,69 @@ function NationalCountyRanking({ state }) {
           </div>
         )}
 
+        {error && (
+          <Card className="border-destructive/50 bg-destructive/5 p-6 text-center">
+            <p className="text-destructive font-medium">Failed to load data: {error}</p>
+          </Card>
+        )}
+
         {!loading && countyMap && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Highest Health Need
-                  </CardTitle>
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">🎯 Top Investment Opportunities</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-1.5">
-                  {top5.map((c, i) => (
+                  {top5opp.map((c, i) => (
                     <div key={c.name} className="flex items-center justify-between">
-                      <span className="text-sm text-foreground">
-                        <span className="text-xs text-muted-foreground mr-1.5">#{i + 1}</span>
-                        {c.name}
-                      </span>
-                      <span className="text-sm font-extrabold text-red-600">{c.need}</span>
+                      <span className="text-sm text-foreground"><span className="text-xs text-muted-foreground mr-1.5">#{i+1}</span>{c.name}</span>
+                      <span className="text-sm font-extrabold text-red-600">{c.opportunity}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">⚠️ Highest Health Need</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  {top5need.map((c, i) => (
+                    <div key={c.name} className="flex items-center justify-between">
+                      <span className="text-sm text-foreground"><span className="text-xs text-muted-foreground mr-1.5">#{i+1}</span>{c.name}</span>
+                      <span className="text-sm font-extrabold text-orange-600">{c.need}</span>
                     </div>
                   ))}
                 </CardContent>
               </Card>
 
               <Card className="border-blue-200 bg-blue-50">
-                <CardContent className="py-4 px-4">
-                  <p className="text-sm text-blue-800">
-                    <strong>Need Score (0–100):</strong> Weighted blend of diabetes, obesity, smoking,
-                    poor mental health, and uninsured rate from CDC PLACES 2023.
-                  </p>
+                <CardContent className="py-4 px-4 text-sm text-blue-800">
+                  <strong>Scores (0–100):</strong><br />
+                  <strong>Need</strong> = disease burden + poverty + uninsured<br />
+                  <strong>Access</strong> = provider density + coverage<br />
+                  <strong>Opportunity</strong> = Need × (1 − Access/100)
                 </CardContent>
               </Card>
             </div>
 
             <Card>
               <div className="px-5 py-4 border-b border-border flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-                <button
-                  onClick={() => setSortAsc(!sortAsc)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors"
-                >
-                  Sort by Need {sortAsc ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
+                <div className="flex gap-2 flex-wrap">
+                  {SORT_DIMS.map(dim => (
+                    <Button
+                      key={dim.id}
+                      variant={sortDim === dim.id ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => toggleSort(dim.id)}
+                      className="gap-1"
+                    >
+                      {dim.label}
+                      {sortDim === dim.id && (sortAsc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                    </Button>
+                  ))}
+                </div>
                 <div className="relative w-full sm:w-48">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter counties…" className="pl-8" />
@@ -377,11 +411,24 @@ function NationalCountyRanking({ state }) {
                     <tr className="border-b border-border bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       <th className="text-left px-4 py-3 w-10">#</th>
                       <th className="text-left px-4 py-3">County</th>
-                      <th className="text-right px-4 py-3">Need</th>
-                      <th className="text-right px-4 py-3">Diabetes</th>
-                      <th className="text-right px-4 py-3">Obesity</th>
-                      <th className="text-right px-4 py-3">Uninsured</th>
-                      <th className="text-right px-4 py-3 hidden md:table-cell">Mental Health</th>
+                      <th className="text-right px-4 py-3">Pop</th>
+                      <th className="text-right px-4 py-3 min-w-[120px]">
+                        <button onClick={() => toggleSort('need')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                          Need {sortDim === 'need' && (sortAsc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                        </button>
+                      </th>
+                      <th className="text-right px-4 py-3 min-w-[120px]">
+                        <button onClick={() => toggleSort('access')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                          Access {sortDim === 'access' && (sortAsc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                        </button>
+                      </th>
+                      <th className="text-right px-4 py-3 min-w-[130px]">
+                        <button onClick={() => toggleSort('opportunity')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                          Opportunity {sortDim === 'opportunity' && (sortAsc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                        </button>
+                      </th>
+                      <th className="text-right px-4 py-3 hidden md:table-cell">Diabetes</th>
+                      <th className="text-right px-4 py-3 hidden lg:table-cell">Uninsured</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -389,23 +436,34 @@ function NationalCountyRanking({ state }) {
                       <tr key={c.name} className={['border-b border-border hover:bg-muted/40 transition-colors', idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'].join(' ')}>
                         <td className="px-4 py-3 text-xs text-muted-foreground">{idx + 1}</td>
                         <td className="px-4 py-3 font-semibold text-foreground">{c.name}</td>
+                        <td className="px-4 py-3 text-right text-xs text-muted-foreground">{c.pop > 0 ? `${(c.pop / 1000).toFixed(0)}k` : '—'}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            <Progress value={c.need} className="h-1.5 w-16" indicatorClassName={c.need >= 65 ? 'bg-red-500' : c.need >= 45 ? 'bg-orange-400' : 'bg-green-400'} />
+                            <Progress value={c.need} className="h-1.5 w-14" indicatorClassName={c.need >= 65 ? 'bg-red-500' : c.need >= 45 ? 'bg-orange-400' : 'bg-green-400'} />
                             <span className="text-xs font-bold w-5">{c.need}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right text-xs">{c.DIABETES != null ? `${c.DIABETES.toFixed(1)}%` : '—'}</td>
-                        <td className="px-4 py-3 text-right text-xs">{c.OBESITY  != null ? `${c.OBESITY.toFixed(1)}%`  : '—'}</td>
-                        <td className="px-4 py-3 text-right text-xs">{c.ACCESS2  != null ? `${c.ACCESS2.toFixed(1)}%`  : '—'}</td>
-                        <td className="px-4 py-3 text-right text-xs hidden md:table-cell">{c.MHLTH != null ? `${c.MHLTH.toFixed(1)}%` : '—'}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Progress value={c.access} className="h-1.5 w-14" indicatorClassName={c.access >= 55 ? 'bg-green-500' : c.access >= 35 ? 'bg-yellow-400' : 'bg-red-500'} />
+                            <span className="text-xs font-bold w-5">{c.access}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Progress value={c.opportunity} className="h-1.5 w-14" indicatorClassName={c.opportunity >= 65 ? 'bg-red-500' : c.opportunity >= 50 ? 'bg-orange-400' : 'bg-blue-400'} />
+                            <span className="text-xs font-bold w-5">{c.opportunity}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs hidden md:table-cell">{c.DIABETES != null ? `${c.DIABETES.toFixed(1)}%` : '—'}</td>
+                        <td className="px-4 py-3 text-right text-xs hidden lg:table-cell">{c.acs?.uninsured != null ? `${c.acs.uninsured.toFixed(1)}%` : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
               <div className="px-5 py-3 border-t border-border">
-                <p className="text-xs text-muted-foreground">Showing {ranked.length} of {Object.keys(countyMap).length} counties · Source: CDC PLACES 2023</p>
+                <p className="text-xs text-muted-foreground">Showing {ranked.length} of {Object.keys(countyMap).length} counties · CDC PLACES 2023 + Census ACS 2022</p>
               </div>
             </Card>
           </>
