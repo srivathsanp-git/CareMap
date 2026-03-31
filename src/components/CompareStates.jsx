@@ -8,88 +8,140 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { US_STATES, NAME_TO_ABBR } from '../data/usStates'
-import { fetchStatePlaces, MEASURE_META, KEY_MEASURES, metricColor, METRIC_THRESHOLDS } from '../utils/cdcPlaces'
+import { fetchStatePlaces, METRIC_THRESHOLDS, metricColor } from '../utils/cdcPlaces'
+import { STATE_STATIC } from '../utils/nationalData'
 
-const TABS = [
-  { id: 'scorecard', label: 'State Scorecard', icon: BarChart2  },
-  { id: 'headtohead',label: 'Head-to-Head',    icon: BarChart2  },
-  { id: 'map',       label: 'National Map',    icon: Map        },
-  { id: 'deserts',   label: 'Provider Deserts',icon: AlertTriangle },
+// ── Unified metric definitions ────────────────────────────────────────────────
+// type: 'places' = from CDC PLACES API, 'static' = from nationalData.js
+// higherIsBetter: affects color scale direction
+// showOnMap: whether this metric can be choropleth-mapped (skip boolean)
+// unit: '%' | 'yr' | '$k' | 'bool'
+
+export const ALL_METRICS = [
+  // ── CDC PLACES (prevalence — lower = better) ─────────────────────────────
+  { id: 'DIABETES',   label: 'Diabetes',           type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Adults with diabetes',                    source: 'CDC PLACES 2023' },
+  { id: 'OBESITY',    label: 'Obesity',             type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Adults with obesity',                     source: 'CDC PLACES 2023' },
+  { id: 'CSMOKING',   label: 'Smoking',             type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Current smokers',                         source: 'CDC PLACES 2023' },
+  { id: 'MHLTH',      label: 'Poor Mental Health',  type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Mental health not good 14+ days/mo',      source: 'CDC PLACES 2023' },
+  { id: 'ACCESS2',    label: 'Uninsured',           type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Adults without health insurance',          source: 'CDC PLACES 2023' },
+  { id: 'BPHIGH',     label: 'High Blood Pressure', type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Adults with high blood pressure',          source: 'CDC PLACES 2023' },
+  { id: 'CHD',        label: 'Heart Disease',       type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Coronary heart disease',                  source: 'CDC PLACES 2023' },
+  { id: 'CASTHMA',    label: 'Asthma',              type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Current asthma',                          source: 'CDC PLACES 2023' },
+  { id: 'DEPRESSION', label: 'Depression',          type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Adults with depression',                  source: 'CDC PLACES 2023' },
+  { id: 'LPA',        label: 'Physical Inactivity', type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Adults with no leisure-time physical activity', source: 'CDC PLACES 2023' },
+  { id: 'BINGE',      label: 'Binge Drinking',      type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Adults reporting binge drinking',          source: 'CDC PLACES 2023' },
+  { id: 'SLEEP',      label: 'Insufficient Sleep',  type: 'places', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Adults sleeping <7 hours',                source: 'CDC PLACES 2023' },
+  // ── Static / Census data ─────────────────────────────────────────────────
+  { id: 'lifeExp',       label: 'Life Expectancy',    type: 'static', unit: 'yr', higherIsBetter: true,  showOnMap: true,  desc: 'Average life expectancy at birth',        source: 'CDC NCHS 2021',          thresholds: { low: 73, high: 79 } },
+  { id: 'medianIncome',  label: 'Median Income',      type: 'static', unit: '$k', higherIsBetter: true,  showOnMap: true,  desc: 'Median household income (thousands)',      source: 'Census ACS 2022',        thresholds: { low: 50000, high: 80000 } },
+  { id: 'povertyRate',   label: 'Poverty Rate',       type: 'static', unit: '%',  higherIsBetter: false, showOnMap: true,  desc: 'Persons below poverty line',              source: 'Census ACS 2022',        thresholds: { low: 9, high: 17 } },
+  { id: 'medicaidExpanded', label: 'Medicaid Expanded', type: 'static', unit: 'bool', higherIsBetter: true, showOnMap: false, desc: 'State adopted ACA Medicaid expansion',  source: 'KFF State Health Facts 2024' },
 ]
 
-const DISPLAY_METRICS = KEY_MEASURES.slice(0, 7)  // show 7 in scorecard
+// Subsets
+const MAP_METRICS       = ALL_METRICS.filter(m => m.showOnMap)
+const PLACES_METRICS    = ALL_METRICS.filter(m => m.type === 'places')
 
-// ── helpers ─────────────────────────────────────────────────────────────────
-function rankStates(data, measureId) {
-  const entries = Object.entries(data)
-    .filter(([, d]) => d[measureId] != null)
-    .sort((a, b) => a[1][measureId] - b[1][measureId])  // lower = better rank
-  return Object.fromEntries(entries.map(([abbr], i) => [abbr, i + 1]))
+const TABS = [
+  { id: 'scorecard',  label: 'State Scorecard',  icon: BarChart2     },
+  { id: 'headtohead', label: 'Head-to-Head',      icon: BarChart2     },
+  { id: 'map',        label: 'National Map',      icon: Map           },
+  { id: 'deserts',    label: 'Provider Deserts',  icon: AlertTriangle },
+]
+
+// ── Color helpers ─────────────────────────────────────────────────────────────
+const CHORO_COLORS = ['#22c55e','#86efac','#fde68a','#fbbf24','#f97316','#ef4444','#991b1b']
+
+function getThresholds(metric) {
+  // For PLACES metrics, use METRIC_THRESHOLDS from cdcPlaces.js
+  if (metric.type === 'places') return METRIC_THRESHOLDS[metric.id] || { low: 0, high: 100 }
+  return metric.thresholds || { low: 0, high: 100 }
 }
 
-function valueBadgeVariant(value, measureId) {
-  const { low, high } = METRIC_THRESHOLDS[measureId] || { low: 0, high: 100 }
-  const t = (value - low) / (high - low)
+function choroColor(value, metric) {
+  if (value == null) return '#e5e7eb'
+  const { low, high } = getThresholds(metric)
+  let t = Math.max(0, Math.min(1, (value - low) / (high - low)))
+  if (metric.higherIsBetter) t = 1 - t   // invert: high value → green side
+  const idx = Math.min(Math.floor(t * CHORO_COLORS.length), CHORO_COLORS.length - 1)
+  return CHORO_COLORS[idx]
+}
+
+function valueBadgeVariant(value, metric) {
+  const { low, high } = getThresholds(metric)
+  let t = (value - low) / (high - low)
+  if (metric.higherIsBetter) t = 1 - t
   if (t < 0.33) return 'success'
   if (t < 0.66) return 'warning'
   return 'danger'
 }
 
+function formatValue(value, unit) {
+  if (value == null) return '—'
+  if (unit === '%')   return `${value.toFixed(1)}%`
+  if (unit === 'yr')  return `${value.toFixed(1)} yr`
+  if (unit === '$k')  return `$${(value / 1000).toFixed(0)}k`
+  if (unit === 'bool') return value ? 'Yes' : 'No'
+  return String(value)
+}
+
 function careGapScore(stateData) {
-  // Higher = worse care gap: blend of uninsured + diabetes + obesity
-  const a = stateData?.ACCESS2  || 0
+  const a = stateData?.ACCESS2   || 0
   const d = stateData?.DIABETES  || 0
   const o = stateData?.OBESITY   || 0
-  const m = stateData?.MHLTH    || 0
-  // Normalize each to 0-100
-  return Math.round(
-    ((a / 18) * 30) +
-    ((d / 15) * 25) +
-    ((o / 42) * 25) +
-    ((m / 18) * 20)
-  )
+  const m = stateData?.MHLTH     || 0
+  return Math.round(((a/18)*30) + ((d/15)*25) + ((o/42)*25) + ((m/18)*20))
 }
 
-// Leaflet choropleth colors (green → red, 7 buckets)
-const CHORO_COLORS = ['#22c55e','#86efac','#fde68a','#fbbf24','#f97316','#ef4444','#991b1b']
-function choroColor(value, measureId) {
-  if (value == null) return '#e5e7eb'
-  const { low, high } = METRIC_THRESHOLDS[measureId] || { low: 0, high: 100 }
-  const t = Math.max(0, Math.min(1, (value - low) / (high - low)))
-  const idx = Math.min(Math.floor(t * CHORO_COLORS.length), CHORO_COLORS.length - 1)
-  return CHORO_COLORS[idx]
+function rankStates(data, metricId) {
+  const metric = ALL_METRICS.find(m => m.id === metricId)
+  const asc = metric ? !metric.higherIsBetter : true
+  const entries = Object.entries(data)
+    .filter(([, d]) => d[metricId] != null)
+    .sort((a, b) => asc ? a[1][metricId] - b[1][metricId] : b[1][metricId] - a[1][metricId])
+  return Object.fromEntries(entries.map(([abbr], i) => [abbr, i + 1]))
 }
 
-// ── Sub-components ───────────────────────────────────────────────────────────
+// ── GeoJSON property name → state abbr ───────────────────────────────────────
+const GEO_NAME_TO_ABBR = { ...NAME_TO_ABBR, 'District of Columbia': 'DC' }
 
-function Scorecard({ data }) {
-  const [sortMetric, setSortMetric] = useState('DIABETES')
-  const [sortAsc,    setSortAsc]    = useState(true)
-  const [search,     setSearch]     = useState('')
+// ── Scorecard ─────────────────────────────────────────────────────────────────
+function Scorecard({ merged }) {
+  const [sortId,  setSortId]  = useState('DIABETES')
+  const [sortAsc, setSortAsc] = useState(true)
+  const [search,  setSearch]  = useState('')
 
-  const ranks = rankStates(data, sortMetric)
+  const sortMetric = ALL_METRICS.find(m => m.id === sortId) || ALL_METRICS[0]
+  const ranks = rankStates(merged, sortId)
 
-  const rows = Object.entries(data)
-    .filter(([abbr, d]) => {
+  const rows = Object.entries(merged)
+    .filter(([abbr]) => {
       const st = US_STATES.find(s => s.abbr === abbr)
       if (!st) return false
       return !search || st.name.toLowerCase().includes(search.toLowerCase()) || abbr.toLowerCase().includes(search.toLowerCase())
     })
     .sort((a, b) => {
-      const av = a[1][sortMetric] ?? 999
-      const bv = b[1][sortMetric] ?? 999
+      const av = a[1][sortId] ?? (sortAsc ? 999 : -999)
+      const bv = b[1][sortId] ?? (sortAsc ? 999 : -999)
       return sortAsc ? av - bv : bv - av
     })
 
-  function toggleSort(m) {
-    if (sortMetric === m) setSortAsc(!sortAsc)
-    else { setSortMetric(m); setSortAsc(true) }
+  function toggleSort(id) {
+    const m = ALL_METRICS.find(x => x.id === id)
+    if (sortId === id) setSortAsc(!sortAsc)
+    else { setSortId(id); setSortAsc(!m?.higherIsBetter) } // default: lower=worse for negative metrics
   }
+
+  // Group metrics for header display
+  const metricGroups = [
+    { label: 'CDC PLACES 2023', cols: PLACES_METRICS },
+    { label: 'Population Health', cols: ALL_METRICS.filter(m => m.type === 'static') },
+  ]
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <p className="text-sm text-muted-foreground">All 50 states ranked by CDC PLACES health metrics. Lower % = better.</p>
+        <p className="text-sm text-muted-foreground">All 50 states ranked. Click a column header to sort.</p>
         <div className="relative w-full sm:w-48">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter states…" className="pl-8" />
@@ -99,16 +151,27 @@ function Scorecard({ data }) {
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-sm">
           <thead>
+            {/* Group row */}
+            <tr className="bg-muted/30 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              <th className="text-left px-4 py-2 sticky left-0 bg-muted/30 min-w-[130px]" />
+              {metricGroups.map(g => (
+                <th key={g.label} colSpan={g.cols.length} className="text-center px-2 py-2 border-l border-border/50">
+                  {g.label}
+                </th>
+              ))}
+            </tr>
+            {/* Column header row */}
             <tr className="bg-muted/50 border-b border-border text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              <th className="text-left px-4 py-3 sticky left-0 bg-muted/50 min-w-[120px]">State</th>
-              {DISPLAY_METRICS.map(m => (
-                <th key={m} className="px-3 py-3 min-w-[110px]">
+              <th className="text-left px-4 py-3 sticky left-0 bg-muted/50">State</th>
+              {ALL_METRICS.map(m => (
+                <th key={m.id} className="px-3 py-3 min-w-[100px]">
                   <button
-                    onClick={() => toggleSort(m)}
-                    className={['flex items-center gap-1 ml-auto hover:text-foreground transition-colors', sortMetric === m ? 'text-primary' : ''].join(' ')}
+                    onClick={() => toggleSort(m.id)}
+                    className={['flex items-center gap-1 mx-auto hover:text-foreground transition-colors', sortId === m.id ? 'text-primary' : ''].join(' ')}
+                    title={m.desc}
                   >
-                    {MEASURE_META[m].label}
-                    {sortMetric === m && (sortAsc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                    <span className="text-center leading-tight">{m.label}</span>
+                    {sortId === m.id && (sortAsc ? <ChevronUp className="h-3 w-3 shrink-0" /> : <ChevronDown className="h-3 w-3 shrink-0" />)}
                   </button>
                 </th>
               ))}
@@ -123,78 +186,128 @@ function Scorecard({ data }) {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground w-5">{ranks[abbr]}</span>
                       <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{abbr}</span>
-                      <span className="hidden sm:inline text-xs text-muted-foreground">{st?.name}</span>
+                      <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[80px]">{st?.name}</span>
                     </div>
                   </td>
-                  {DISPLAY_METRICS.map(m => (
-                    <td key={m} className="px-3 py-2.5 text-right">
-                      {d[m] != null ? (
-                        <Badge variant={valueBadgeVariant(d[m], m)} className="text-xs">
-                          {d[m].toFixed(1)}%
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
-                    </td>
-                  ))}
+                  {ALL_METRICS.map(m => {
+                    const val = d[m.id]
+                    if (m.unit === 'bool') {
+                      return (
+                        <td key={m.id} className="px-3 py-2.5 text-center">
+                          <Badge variant={val ? 'success' : 'secondary'} className="text-[10px]">
+                            {val ? 'Yes' : 'No'}
+                          </Badge>
+                        </td>
+                      )
+                    }
+                    return (
+                      <td key={m.id} className="px-3 py-2.5 text-right">
+                        {val != null ? (
+                          <Badge variant={valueBadgeVariant(val, m)} className="text-xs">
+                            {formatValue(val, m.unit)}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
+                    )
+                  })}
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground text-center">Source: CDC PLACES 2023 · Aggregated from county-level data</p>
+
+      {/* Source attribution */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground justify-center pt-1">
+        <span>CDC PLACES 2023 — county-level health prevalence, aggregated by state</span>
+        <span>·</span>
+        <span>CDC NCHS 2021 — life expectancy at birth</span>
+        <span>·</span>
+        <span>Census ACS 2022 — income &amp; poverty</span>
+        <span>·</span>
+        <span>KFF State Health Facts 2024 — Medicaid expansion status</span>
+      </div>
     </div>
   )
 }
 
-function HeadToHead({ data }) {
+// ── Head-to-Head ──────────────────────────────────────────────────────────────
+function HeadToHead({ merged }) {
   const [stateA, setStateA] = useState('IA')
   const [stateB, setStateB] = useState('MN')
 
-  const dA = data[stateA]
-  const dB = data[stateB]
+  const dA = merged[stateA]
+  const dB = merged[stateB]
 
   return (
     <div className="space-y-5">
+      {/* State selectors */}
       <div className="flex gap-3 flex-wrap items-center">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">State A:</span>
-          <select
-            value={stateA}
-            onChange={e => setStateA(e.target.value)}
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {US_STATES.map(s => <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>)}
-          </select>
-        </div>
-        <span className="text-muted-foreground font-bold">vs</span>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">State B:</span>
-          <select
-            value={stateB}
-            onChange={e => setStateB(e.target.value)}
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {US_STATES.map(s => <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>)}
-          </select>
-        </div>
+        {[{ label: 'State A', val: stateA, set: setStateA }, { label: 'State B', val: stateB, set: setStateB }].map(({ label, val, set }, i) => (
+          <div key={i} className="flex items-center gap-2">
+            {i > 0 && <span className="text-muted-foreground font-bold">vs</span>}
+            <span className="text-sm font-medium text-foreground">{label}:</span>
+            <select
+              value={val}
+              onChange={e => set(e.target.value)}
+              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {US_STATES.map(s => <option key={s.abbr} value={s.abbr}>{s.abbr} — {s.name}</option>)}
+            </select>
+          </div>
+        ))}
       </div>
 
       {dA && dB && (
         <div className="space-y-3">
-          {KEY_MEASURES.map(m => {
-            const vA = dA[m], vB = dB[m]
+          {ALL_METRICS.map(m => {
+            const vA = dA[m.id]
+            const vB = dB[m.id]
             if (vA == null && vB == null) return null
-            const maxV = Math.max(vA || 0, vB || 0, METRIC_THRESHOLDS[m]?.high || 30)
-            const winner = vA != null && vB != null ? (vA < vB ? stateA : vA > vB ? stateB : 'tie') : null
+
+            // Boolean metric: show side-by-side badge
+            if (m.unit === 'bool') {
+              return (
+                <Card key={m.id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-semibold text-sm text-foreground">{m.label}</span>
+                      <span className="text-xs text-muted-foreground">{m.desc}</span>
+                    </div>
+                    <div className="flex gap-6">
+                      {[{ abbr: stateA, v: vA }, { abbr: stateB, v: vB }].map(({ abbr, v }) => (
+                        <div key={abbr} className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold w-8 text-foreground">{abbr}</span>
+                          <Badge variant={v ? 'success' : 'secondary'}>{v ? 'Expanded' : 'Not Expanded'}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Source: {m.source}</p>
+                  </CardContent>
+                </Card>
+              )
+            }
+
+            // Numeric metric: horizontal bar
+            const { low, high } = getThresholds(m)
+            const maxV = m.unit === '$k'
+              ? Math.max(vA || 0, vB || 0, high)
+              : Math.max(vA || 0, vB || 0, high)
+            // For higher-is-better, winner has higher value; otherwise lower value
+            const winner = vA != null && vB != null
+              ? (m.higherIsBetter
+                  ? (vA > vB ? stateA : vA < vB ? stateB : 'tie')
+                  : (vA < vB ? stateA : vA > vB ? stateB : 'tie'))
+              : null
 
             return (
-              <Card key={m} className="overflow-hidden">
+              <Card key={m.id} className="overflow-hidden">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="font-semibold text-sm text-foreground">{MEASURE_META[m].label}</span>
-                    <span className="text-xs text-muted-foreground">{MEASURE_META[m].desc}</span>
+                    <span className="font-semibold text-sm text-foreground">{m.label}</span>
+                    <span className="text-xs text-muted-foreground">{m.desc}</span>
                   </div>
                   <div className="space-y-2">
                     {[{ abbr: stateA, v: vA }, { abbr: stateB, v: vB }].map(({ abbr, v }) => (
@@ -205,36 +318,39 @@ function HeadToHead({ data }) {
                             className="h-full rounded-full transition-all"
                             style={{
                               width: v != null ? `${(v / maxV) * 100}%` : '0%',
-                              backgroundColor: v != null ? metricColor(v, m) : '#e5e7eb',
+                              backgroundColor: v != null ? choroColor(v, m) : '#e5e7eb',
                             }}
                           />
                         </div>
-                        <span className="text-sm font-bold w-14 text-right text-foreground">
-                          {v != null ? `${v.toFixed(1)}%` : '—'}
+                        <span className="text-sm font-bold w-16 text-right text-foreground">
+                          {formatValue(v, m.unit)}
                         </span>
                         {winner === abbr && <Badge variant="success" className="text-[10px]">Better</Badge>}
                       </div>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">Source: {m.source}</p>
                 </CardContent>
               </Card>
             )
           })}
         </div>
       )}
+
+      {/* Source footer */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1 border-t border-border">
+        <span>CDC PLACES 2023 · CDC NCHS 2021 · Census ACS 2022 · KFF 2024</span>
+      </div>
     </div>
   )
 }
 
-// GeoJSON property name → state abbr (covers common variations)
-const GEO_NAME_TO_ABBR = {
-  ...NAME_TO_ABBR,
-  'District of Columbia': 'DC',
-}
-
-function NationalMap({ data, measureId, onMeasureChange }) {
-  const [geoJson, setGeoJson] = useState(null)
+// ── National Map ──────────────────────────────────────────────────────────────
+function NationalMap({ merged, measureId, onMeasureChange }) {
+  const [geoJson,  setGeoJson]  = useState(null)
   const [geoError, setGeoError] = useState(null)
+
+  const metric = MAP_METRICS.find(m => m.id === measureId) || MAP_METRICS[0]
 
   useEffect(() => {
     fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')
@@ -246,9 +362,9 @@ function NationalMap({ data, measureId, onMeasureChange }) {
   function featureStyle(feature) {
     const stateName = feature.properties.name || feature.properties.NAME || ''
     const abbr  = GEO_NAME_TO_ABBR[stateName]
-    const value = abbr && data[abbr] ? data[abbr][measureId] : null
+    const value = abbr && merged[abbr] ? merged[abbr][measureId] : null
     return {
-      fillColor:   choroColor(value, measureId),
+      fillColor:   choroColor(value, metric),
       fillOpacity: 0.75,
       color:       '#fff',
       weight:      1.5,
@@ -258,15 +374,16 @@ function NationalMap({ data, measureId, onMeasureChange }) {
   function onEachFeature(feature, layer) {
     const stateName = feature.properties.name || feature.properties.NAME || ''
     const abbr  = GEO_NAME_TO_ABBR[stateName]
-    const value = abbr && data[abbr] ? data[abbr][measureId] : null
-    const metricLabel = MEASURE_META[measureId]?.label || measureId
+    const value = abbr && merged[abbr] ? merged[abbr][measureId] : null
+    const color = choroColor(value, metric)
     const tooltipHtml = `
-      <div style="font-family:sans-serif;line-height:1.4;min-width:140px">
+      <div style="font-family:sans-serif;line-height:1.4;min-width:150px">
         <div style="font-weight:700;font-size:13px;margin-bottom:3px">${stateName}</div>
-        <div style="font-size:12px;color:#6b7280">${metricLabel}</div>
-        <div style="font-size:16px;font-weight:800;margin-top:2px;color:${value != null ? choroColor(value, measureId) : '#9ca3af'}">
-          ${value != null ? value.toFixed(1) + '%' : 'No data'}
+        <div style="font-size:11px;color:#6b7280;margin-bottom:2px">${metric.label}</div>
+        <div style="font-size:16px;font-weight:800;color:${value != null ? color : '#9ca3af'}">
+          ${value != null ? formatValue(value, metric.unit) : 'No data'}
         </div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:4px">${metric.source}</div>
       </div>
     `
     layer.bindTooltip(tooltipHtml, { sticky: true, opacity: 0.97, className: 'caremap-tooltip' })
@@ -276,31 +393,42 @@ function NationalMap({ data, measureId, onMeasureChange }) {
     })
   }
 
+  // Group metric selector pills
+  const mapMetricGroups = [
+    { label: 'CDC PLACES', metrics: MAP_METRICS.filter(m => m.type === 'places') },
+    { label: 'Population Health', metrics: MAP_METRICS.filter(m => m.type === 'static') },
+  ]
+
   return (
     <div className="space-y-4">
-      {/* Metric selector */}
-      <div className="flex flex-wrap gap-2">
-        {KEY_MEASURES.map(m => (
-          <button
-            key={m}
-            onClick={() => onMeasureChange(m)}
-            className={[
-              'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
-              measureId === m
-                ? 'bg-primary text-white'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-            ].join(' ')}
-          >
-            {MEASURE_META[m].label}
-          </button>
-        ))}
-      </div>
+      {/* Metric selector grouped by source */}
+      {mapMetricGroups.map(g => (
+        <div key={g.label} className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{g.label}</p>
+          <div className="flex flex-wrap gap-2">
+            {g.metrics.map(m => (
+              <button
+                key={m.id}
+                onClick={() => onMeasureChange(m.id)}
+                className={[
+                  'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+                  measureId === m.id
+                    ? 'bg-primary text-white'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
+                ].join(' ')}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
 
       {/* Legend */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span>Better</span>
+        <span>{metric.higherIsBetter ? 'Worse' : 'Better'}</span>
         {CHORO_COLORS.map((c, i) => <div key={i} className="h-4 w-6 rounded" style={{ backgroundColor: c }} />)}
-        <span>Worse</span>
+        <span>{metric.higherIsBetter ? 'Better' : 'Worse'}</span>
         <div className="ml-4 h-4 w-6 rounded bg-[#e5e7eb]" />
         <span>No data</span>
       </div>
@@ -308,7 +436,7 @@ function NationalMap({ data, measureId, onMeasureChange }) {
       <div className="rounded-xl overflow-hidden border border-border" style={{ height: '520px' }}>
         {geoError ? (
           <div className="h-full flex items-center justify-center bg-muted/20">
-            <p className="text-sm text-destructive">Failed to load map boundaries: {geoError}</p>
+            <p className="text-sm text-destructive">Failed to load map: {geoError}</p>
           </div>
         ) : geoJson ? (
           <MapContainer
@@ -322,7 +450,7 @@ function NationalMap({ data, measureId, onMeasureChange }) {
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
             />
             <GeoJSON
-              key={`${measureId}-${Object.keys(data).length}`}
+              key={`${measureId}-${Object.keys(merged).length}`}
               data={geoJson}
               style={featureStyle}
               onEachFeature={onEachFeature}
@@ -337,27 +465,38 @@ function NationalMap({ data, measureId, onMeasureChange }) {
           </div>
         )}
       </div>
+
+      <p className="text-xs text-muted-foreground text-center">Source: {metric.source}</p>
     </div>
   )
 }
 
-function ProviderDeserts({ data }) {
+// ── Provider Deserts ──────────────────────────────────────────────────────────
+function ProviderDeserts({ merged }) {
   const [sortAsc, setSortAsc] = useState(false)
 
   const ranked = US_STATES
     .map(st => ({
       ...st,
-      d: data[st.abbr],
-      gap: careGapScore(data[st.abbr]),
-      uninsured: data[st.abbr]?.ACCESS2,
-      diabetes:  data[st.abbr]?.DIABETES,
-      mhlth:     data[st.abbr]?.MHLTH,
+      d:         merged[st.abbr],
+      gap:       careGapScore(merged[st.abbr]),
+      uninsured: merged[st.abbr]?.ACCESS2,
+      diabetes:  merged[st.abbr]?.DIABETES,
+      mhlth:     merged[st.abbr]?.MHLTH,
+      lifeExp:   merged[st.abbr]?.lifeExp,
+      poverty:   merged[st.abbr]?.povertyRate,
     }))
     .filter(s => s.d)
     .sort((a, b) => sortAsc ? a.gap - b.gap : b.gap - a.gap)
 
-  const worst5  = [...ranked].sort((a, b) => b.gap - a.gap).slice(0, 5)
-  const best5   = [...ranked].sort((a, b) => a.gap - b.gap).slice(0, 5)
+  const worst5 = [...ranked].sort((a, b) => b.gap - a.gap).slice(0, 5)
+  const best5  = [...ranked].sort((a, b) => a.gap - b.gap).slice(0, 5)
+
+  const lifeExpMetric   = ALL_METRICS.find(m => m.id === 'lifeExp')
+  const povertyMetric   = ALL_METRICS.find(m => m.id === 'povertyRate')
+  const uninsuredMetric = ALL_METRICS.find(m => m.id === 'ACCESS2')
+  const diabetesMetric  = ALL_METRICS.find(m => m.id === 'DIABETES')
+  const mhlthMetric     = ALL_METRICS.find(m => m.id === 'MHLTH')
 
   return (
     <div className="space-y-5">
@@ -415,7 +554,7 @@ function ProviderDeserts({ data }) {
         </Card>
       </div>
 
-      {/* Full table */}
+      {/* Full ranked table */}
       <Card>
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
           <span className="text-sm font-medium text-foreground">All States — Care Gap Ranking</span>
@@ -433,7 +572,9 @@ function ProviderDeserts({ data }) {
                 <th className="text-right px-4 py-3">Care Gap</th>
                 <th className="text-right px-4 py-3">Uninsured</th>
                 <th className="text-right px-4 py-3">Diabetes</th>
-                <th className="text-right px-4 py-3">Poor Mental Health</th>
+                <th className="text-right px-4 py-3">Mental Health</th>
+                <th className="text-right px-4 py-3">Life Exp.</th>
+                <th className="text-right px-4 py-3">Poverty</th>
               </tr>
             </thead>
             <tbody>
@@ -451,13 +592,19 @@ function ProviderDeserts({ data }) {
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    {s.uninsured != null ? <Badge variant={valueBadgeVariant(s.uninsured, 'ACCESS2')} className="text-xs">{s.uninsured.toFixed(1)}%</Badge> : '—'}
+                    {s.uninsured != null ? <Badge variant={valueBadgeVariant(s.uninsured, uninsuredMetric)} className="text-xs">{s.uninsured.toFixed(1)}%</Badge> : '—'}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    {s.diabetes != null ? <Badge variant={valueBadgeVariant(s.diabetes, 'DIABETES')} className="text-xs">{s.diabetes.toFixed(1)}%</Badge> : '—'}
+                    {s.diabetes != null ? <Badge variant={valueBadgeVariant(s.diabetes, diabetesMetric)} className="text-xs">{s.diabetes.toFixed(1)}%</Badge> : '—'}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    {s.mhlth != null ? <Badge variant={valueBadgeVariant(s.mhlth, 'MHLTH')} className="text-xs">{s.mhlth.toFixed(1)}%</Badge> : '—'}
+                    {s.mhlth != null ? <Badge variant={valueBadgeVariant(s.mhlth, mhlthMetric)} className="text-xs">{s.mhlth.toFixed(1)}%</Badge> : '—'}
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    {s.lifeExp != null ? <Badge variant={valueBadgeVariant(s.lifeExp, lifeExpMetric)} className="text-xs">{s.lifeExp.toFixed(1)} yr</Badge> : '—'}
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    {s.poverty != null ? <Badge variant={valueBadgeVariant(s.poverty, povertyMetric)} className="text-xs">{s.poverty.toFixed(1)}%</Badge> : '—'}
                   </td>
                 </tr>
               ))}
@@ -465,25 +612,44 @@ function ProviderDeserts({ data }) {
           </table>
         </div>
       </Card>
+
+      {/* Source attribution */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1 border-t border-border">
+        <span>Care Gap Score: CDC PLACES 2023 (uninsured, diabetes, obesity, mental health)</span>
+        <span>·</span>
+        <span>Life Expectancy: CDC NCHS 2021</span>
+        <span>·</span>
+        <span>Poverty: Census ACS 2022</span>
+      </div>
     </div>
   )
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function CompareStates() {
   const [tab,       setTab]       = useState('scorecard')
   const [mapMetric, setMapMetric] = useState('DIABETES')
-  const [data,      setData]      = useState(null)
+  const [placesData, setPlacesData] = useState(null)
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState(null)
 
   useEffect(() => {
     setLoading(true)
     fetchStatePlaces()
-      .then(setData)
+      .then(setPlacesData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
+
+  // Merge CDC PLACES data with static data
+  const merged = placesData
+    ? Object.fromEntries(
+        Object.entries(placesData).map(([abbr, d]) => [
+          abbr,
+          { ...d, ...(STATE_STATIC[abbr] || {}) },
+        ])
+      )
+    : null
 
   return (
     <div className="min-h-screen bg-background">
@@ -495,7 +661,7 @@ export default function CompareStates() {
             <h2 className="text-xl font-bold">National State Comparison</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Compare health outcomes across all 50 states · CDC PLACES 2023 · Sortable scorecard · Choropleth map · Care gap analysis
+            Compare health outcomes across all 50 states · 16 metrics · CDC PLACES 2023 · Census ACS 2022 · CDC NCHS 2021 · KFF 2024
           </p>
         </div>
       </div>
@@ -537,12 +703,12 @@ export default function CompareStates() {
           </Card>
         )}
 
-        {data && !loading && (
+        {merged && !loading && (
           <>
-            {tab === 'scorecard'  && <Scorecard data={data} />}
-            {tab === 'headtohead' && <HeadToHead data={data} />}
-            {tab === 'map'        && <NationalMap data={data} measureId={mapMetric} onMeasureChange={setMapMetric} />}
-            {tab === 'deserts'    && <ProviderDeserts data={data} />}
+            {tab === 'scorecard'  && <Scorecard   merged={merged} />}
+            {tab === 'headtohead' && <HeadToHead  merged={merged} />}
+            {tab === 'map'        && <NationalMap merged={merged} measureId={mapMetric} onMeasureChange={setMapMetric} />}
+            {tab === 'deserts'    && <ProviderDeserts merged={merged} />}
           </>
         )}
       </div>

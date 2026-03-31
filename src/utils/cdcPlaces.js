@@ -4,7 +4,13 @@
 
 const CDC_COUNTY = 'https://chronicdata.cdc.gov/resource/swc5-untb.json'
 
-export const KEY_MEASURES = ['DIABETES', 'OBESITY', 'CSMOKING', 'MHLTH', 'ACCESS2', 'BPHIGH', 'CHD', 'CASTHMA', 'DEPRESSION']
+export const KEY_MEASURES = [
+  'DIABETES', 'OBESITY', 'CSMOKING', 'MHLTH', 'ACCESS2',
+  'BPHIGH', 'CHD', 'CASTHMA', 'DEPRESSION',
+  'LPA',    // Physical inactivity
+  'BINGE',  // Binge drinking
+  'SLEEP',  // Insufficient sleep
+]
 
 export const MEASURE_META = {
   DIABETES:   { label: 'Diabetes',            unit: '%', desc: 'Adults with diabetes' },
@@ -16,6 +22,9 @@ export const MEASURE_META = {
   CHD:        { label: 'Heart Disease',        unit: '%', desc: 'Coronary heart disease' },
   CASTHMA:    { label: 'Asthma',               unit: '%', desc: 'Current asthma' },
   DEPRESSION: { label: 'Depression',           unit: '%', desc: 'Adults with depression' },
+  LPA:        { label: 'Physical Inactivity',  unit: '%', desc: 'Adults with no leisure-time physical activity' },
+  BINGE:      { label: 'Binge Drinking',       unit: '%', desc: 'Adults reporting binge drinking' },
+  SLEEP:      { label: 'Insufficient Sleep',   unit: '%', desc: 'Adults sleeping <7 hours' },
 }
 
 // Color thresholds per metric (value → green/yellow/red)
@@ -29,6 +38,9 @@ export const METRIC_THRESHOLDS = {
   CHD:        { low: 4,  high: 8  },
   CASTHMA:    { low: 9,  high: 13 },
   DEPRESSION: { low: 18, high: 26 },
+  LPA:        { low: 20, high: 30 },
+  BINGE:      { low: 14, high: 20 },
+  SLEEP:      { low: 30, high: 40 },
 }
 
 export function metricColor(value, measureId) {
