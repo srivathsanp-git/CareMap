@@ -9,9 +9,7 @@ const COLS = [
     { label: 'County rankings',  route: 'resources' },
   ] },
   { head: 'Data', links: [
-    { label: 'Sources',       route: 'about' },
-    { label: 'Methodology',   route: 'about' },
-    { label: 'CSV downloads', route: 'resources' },
+    { label: 'Sources', route: 'about' },
   ] },
   { head: 'Org', links: ['About', 'Press', 'Contact', 'Open source'] },
 ]
