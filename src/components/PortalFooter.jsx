@@ -1,14 +1,27 @@
 // Portal footer (UI spec §2): 4-column (Product / Data / Org + brand blurb)
-// with a "last data refresh" line.
+// with a "last data refresh" line. Link items carry a `route` (internal portal
+// navigation) or `href` (external); plain strings render as inert labels.
+const REPO_URL = 'https://github.com/srivathsanp-git/CareMap'
+
 const COLS = [
-  { head: 'Product', links: ['Find Care', 'Local Risk', 'Compare hospitals', 'County rankings'] },
-  { head: 'Data',    links: ['Sources', 'Methodology', 'CSV downloads', 'API'] },
-  { head: 'Org',     links: ['About', 'Press', 'Contact', 'Open source'] },
+  { head: 'Product', links: [
+    { label: 'Find Care',        route: 'find' },
+    { label: 'Local Risk',       route: 'local' },
+    { label: 'Compare hospitals', route: 'resources' },
+    { label: 'County rankings',  route: 'resources' },
+  ] },
+  { head: 'Data', links: [
+    { label: 'Sources',       route: 'about' },
+    { label: 'Methodology',   route: 'about' },
+    { label: 'CSV downloads', route: 'resources' },
+    { label: 'Source code',   href: REPO_URL },
+  ] },
+  { head: 'Org', links: ['About', 'Press', 'Contact', 'Open source'] },
 ]
 
 const LAST_REFRESH = 'Apr 28, 2026'
 
-export default function PortalFooter() {
+export default function PortalFooter({ onNavigate }) {
   return (
     <footer className="border-t border-ink/15 bg-paper2">
       <div className="mx-auto max-w-[1280px] px-8 py-12">
@@ -27,11 +40,21 @@ export default function PortalFooter() {
             <div key={col.head}>
               <div className="font-mono text-[11px] uppercase tracking-wider text-ink">{col.head}</div>
               <ul className="mt-3 space-y-2">
-                {col.links.map((l) => (
-                  <li key={l}>
-                    <span className="cursor-default text-sm text-ink2 hover:text-ink">{l}</span>
-                  </li>
-                ))}
+                {col.links.map((l) => {
+                  const item = typeof l === 'string' ? { label: l } : l
+                  const cls = 'text-sm text-ink2 hover:text-ink'
+                  return (
+                    <li key={item.label}>
+                      {item.route ? (
+                        <button onClick={() => onNavigate?.(item.route)} className={cls}>{item.label}</button>
+                      ) : item.href ? (
+                        <a href={item.href} target="_blank" rel="noreferrer" className={cls}>{item.label}</a>
+                      ) : (
+                        <span className={`cursor-default ${cls}`}>{item.label}</span>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           ))}

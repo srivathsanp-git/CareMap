@@ -125,7 +125,7 @@ function PortalShell({ route, onNavigate, children }) {
     <div className="portal flex h-screen flex-col overflow-y-auto">
       <TopNav active={NAV_FOR_ROUTE[route] || 'home'} onNavigate={onNavigate} />
       <main className="flex-1">{children}</main>
-      {!full && <PortalFooter />}
+      {!full && <PortalFooter onNavigate={onNavigate} />}
     </div>
   )
 }
