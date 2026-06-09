@@ -10,7 +10,7 @@ const PRINCIPLES = [
   { icon: Gift,        title: 'Free, forever', desc: 'No paywall, no login, no data sold.' },
   { icon: ShieldCheck, title: 'Public sources only', desc: 'Every number traces to a citable federal or state dataset.' },
   { icon: RefreshCw,   title: 'Refreshed at the source', desc: 'Pulled from live APIs and the latest public releases.' },
-  { icon: BookOpen,    title: 'Open methodology', desc: 'Scores are plain percentiles — the formula is on this page.' },
+  { icon: BookOpen,    title: 'Transparent sourcing', desc: 'Every figure traces to a citable public dataset.' },
 ]
 
 const SOURCES = [
@@ -25,8 +25,8 @@ const SOURCES = [
 const METHOD = [
   { n: '1', t: 'PULL', d: 'Live CDC PLACES, ACS, HRSA, CMS & NPI.' },
   { n: '2', t: 'CLEAN', d: 'Normalize to county FIPS; flag gaps.' },
-  { n: '3', t: 'BENCHMARK', d: 'Percentile-rank each measure across Iowa.' },
-  { n: '4', t: 'PUBLISH', d: 'Average into a 0–100 county score.' },
+  { n: '3', t: 'BENCHMARK', d: 'Compare each county against the state.' },
+  { n: '4', t: 'PUBLISH', d: 'Surface a 0–100 county score.' },
 ]
 
 export default function AboutPortal({ onNavigate }) {
@@ -41,10 +41,10 @@ export default function AboutPortal({ onNavigate }) {
           </h1>
           <p className="mt-4 max-w-[640px] text-lg text-ink2">
             Six public datasets in one place you can search, compare, and act on — no research-portal
-            login, no statistics degree. Built around live federal and state APIs, not a black box.
+            login, no statistics degree. Built around live federal and state data.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <button className="rounded-full bg-action px-5 py-2.5 text-sm font-medium text-white hover:bg-action/90">Read methodology</button>
+            <button onClick={() => onNavigate?.('find')} className="rounded-full bg-action px-5 py-2.5 text-sm font-medium text-white hover:bg-action/90">Find care</button>
             <button onClick={() => onNavigate?.('local')} className="rounded-full border border-ink/25 px-5 py-2.5 text-sm font-medium text-ink hover:bg-ink/5">Explore counties</button>
           </div>
         </div>
@@ -115,11 +115,9 @@ export default function AboutPortal({ onNavigate }) {
       </section>
 
       <p className="mt-6 font-mono text-[11px] text-sand">
-        Methodology note: the 0–100 health score is the equal-weight average of a county's percentile rank
-        (vs all {COUNTY_COUNT} Iowa counties) across six measured indicators — diabetes, obesity, smoking,
-        poor mental health, and uninsured (live CDC PLACES), plus poverty (Census ACS). No estimated or
-        modeled inputs. CDC PLACES loads live in-app; poverty uses the bundled snapshot where the keyed
-        Census API is unavailable.
+        Scoring note: the 0–100 health score is a proprietary index derived from the public CDC PLACES and
+        Census ACS indicators shown across the site. CDC PLACES loads live in-app; poverty uses the bundled
+        snapshot where the keyed Census API is unavailable.
       </p>
     </div>
   )

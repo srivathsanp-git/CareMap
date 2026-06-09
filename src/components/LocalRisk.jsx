@@ -84,7 +84,7 @@ export default function LocalRisk({ countyName = 'Polk', onNavigate, onCountyCha
             </div>
           </div>
           <div className="mt-3"><Meter value={county.healthScore / 100} /></div>
-          <p className="mt-3 text-sm text-ink2">Healthier than {healthierPct}% of Iowa counties — a percentile across six CDC/ACS measures.</p>
+          <p className="mt-3 text-sm text-ink2">Healthier than {healthierPct}% of Iowa counties.</p>
         </div>
 
         {/* 3 takeaway cards */}

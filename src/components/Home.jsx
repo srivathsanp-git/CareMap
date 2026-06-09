@@ -209,7 +209,7 @@ export default function Home({ onNavigate, onOpenCounty }) {
           ))}
         </div>
         <p className="mt-3 font-mono text-[11px] text-sand">
-          Sources: CDC PLACES 2023 · Census ACS 2022 5-yr · HRSA HPSA · CMS Care Compare. Scores are percentile ranks across Iowa counties.
+          Sources: CDC PLACES 2023 · Census ACS 2022 5-yr · HRSA HPSA · CMS Care Compare.
         </p>
       </section>
     </div>

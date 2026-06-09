@@ -239,7 +239,7 @@ export default function Resources({ onNavigate, onOpenCounty }) {
 
       <p className="mt-4 font-mono text-[11px] text-sand">
         Sources: CDC PLACES (county prevalence + ACCESS2) · Census ACS (poverty) · CMS Care Compare (hospital stars).
-        {' '}<button onClick={() => onNavigate?.('about')} className="text-action hover:underline">How the score works →</button>
+        {' '}<button onClick={() => onNavigate?.('about')} className="text-action hover:underline">About the data →</button>
       </p>
     </div>
   )
