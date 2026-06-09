@@ -48,7 +48,7 @@ export default function Sidebar({ activeTab, onTabChange, onGoHome, open, onClos
               <Activity className="h-4 w-4 text-white" strokeWidth={2.5} />
             </div>
             <div className="leading-tight text-left">
-              <span className="text-sm font-bold text-white">caremap</span>
+              <span className="text-sm font-bold text-white">CareMap</span>
               <span className="text-sm font-bold text-primary">.ai</span>
             </div>
           </button>

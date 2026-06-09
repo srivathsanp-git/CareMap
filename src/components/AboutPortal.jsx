@@ -35,7 +35,7 @@ export default function AboutPortal({ onNavigate }) {
       {/* Mission hero */}
       <section className="flex flex-col items-start justify-between gap-8 pt-12 lg:flex-row">
         <div className="max-w-[720px]">
-          <div className="font-mono text-[11px] uppercase tracking-wider text-sand">About caremap.ai</div>
+          <div className="font-mono text-[11px] uppercase tracking-wider text-sand">About CareMap.ai</div>
           <h1 className="mt-3 font-display text-[56px] font-semibold leading-[0.98] tracking-tight text-ink">
             Public health data, made useful.
           </h1>

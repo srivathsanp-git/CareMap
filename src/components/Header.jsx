@@ -22,7 +22,7 @@ export default function Header({ activeTab, onTabChange }) {
               <Activity className="w-4 h-4 text-white" strokeWidth={2.5} />
             </div>
             <div className="leading-tight">
-              <span className="font-bold text-slate-900 text-lg tracking-tight">caremap</span>
+              <span className="font-bold text-slate-900 text-lg tracking-tight">CareMap</span>
               <span className="text-blue-700 font-bold text-lg tracking-tight">.ai</span>
             </div>
             <span className="hidden sm:inline-block ml-2 px-2 py-0.5 text-xs font-semibold bg-blue-50 text-blue-700 rounded-full border border-blue-100">

@@ -52,10 +52,10 @@ export function CountyDataProvider({ children }) {
         const places = cdc.status === 'fulfilled' ? cdc.value : null
         const acs = census && census.status === 'fulfilled' ? census.value : null
         if (census && census.status === 'rejected') {
-          console.info('[caremap.ai] Census ACS unavailable (poverty from snapshot):', census.reason?.message || census.reason)
+          console.info('[CareMap.ai] Census ACS unavailable (poverty from snapshot):', census.reason?.message || census.reason)
         }
         if (!places && !acs) {
-          console.warn('[caremap.ai] live data unavailable, using snapshot')
+          console.warn('[CareMap.ai] live data unavailable, using snapshot')
           setData({ ...SNAPSHOT, status: 'snapshot' })
           return
         }
