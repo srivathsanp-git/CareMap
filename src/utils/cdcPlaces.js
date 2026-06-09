@@ -70,7 +70,7 @@ export async function fetchStatePlaces() {
 
   const measures = KEY_MEASURES.map(m => `'${m}'`).join(',')
   const url = `${CDC_COUNTY}?$select=stateabbr,statedesc,measureid,avg(data_value) as val` +
-    `&$where=measureid in(${measures})` +
+    `&$where=measureid in(${measures}) AND datavaluetypeid='CrdPrv'` +
     `&$group=stateabbr,statedesc,measureid&$limit=2000`
 
   const res = await fetch(encodeURI(url))
@@ -96,8 +96,11 @@ export async function fetchCountyPlaces(stateAbbr) {
   if (_countyCache[stateAbbr]) return _countyCache[stateAbbr]
 
   const measures = KEY_MEASURES.map(m => `'${m}'`).join(',')
-  const url = `${CDC_COUNTY}?$select=countyname,countyfips,measureid,data_value,totalpopulation` +
-    `&$where=stateabbr='${stateAbbr}' AND measureid in(${measures})` +
+  // The county dataset exposes the location columns as locationname / locationid
+  // and carries two rows per measure (crude + age-adjusted prevalence); filter
+  // to crude (CrdPrv) so each county·measure resolves to a single value.
+  const url = `${CDC_COUNTY}?$select=locationname,locationid,measureid,data_value,totalpopulation` +
+    `&$where=stateabbr='${stateAbbr}' AND measureid in(${measures}) AND datavaluetypeid='CrdPrv'` +
     `&$limit=5000`
 
   const res = await fetch(encodeURI(url))
@@ -107,8 +110,8 @@ export async function fetchCountyPlaces(stateAbbr) {
 
   const out = {}
   for (const row of rows) {
-    const name = stripCountySuffix(row.countyname)
-    if (!out[name]) out[name] = { fips: row.countyfips, pop: parseInt(row.totalpopulation) || 0 }
+    const name = stripCountySuffix(row.locationname)
+    if (!out[name]) out[name] = { fips: row.locationid, pop: parseInt(row.totalpopulation) || 0 }
     if (row.measureid && row.data_value != null) {
       out[name][row.measureid] = parseFloat(row.data_value)
     }

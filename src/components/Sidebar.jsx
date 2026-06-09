@@ -34,7 +34,7 @@ const NAV_GROUPS = [
   },
 ]
 
-export default function Sidebar({ activeTab, onTabChange, open, onClose }) {
+export default function Sidebar({ activeTab, onTabChange, onGoHome, open, onClose }) {
   return (
     <>
       <aside className={cn(
@@ -43,13 +43,15 @@ export default function Sidebar({ activeTab, onTabChange, open, onClose }) {
       )}>
         {/* Logo */}
         <div className="flex h-14 items-center gap-2.5 px-4 border-b border-sidebar-border">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
-            <Activity className="h-4 w-4 text-white" strokeWidth={2.5} />
-          </div>
-          <div className="leading-tight">
-            <span className="text-sm font-bold text-white">CareMap</span>
-            <span className="text-sm font-bold text-primary"> Iowa</span>
-          </div>
+          <button onClick={onGoHome} className="flex items-center gap-2.5" title="Back to home">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
+              <Activity className="h-4 w-4 text-white" strokeWidth={2.5} />
+            </div>
+            <div className="leading-tight text-left">
+              <span className="text-sm font-bold text-white">CareMap</span>
+              <span className="text-sm font-bold text-primary"> Iowa</span>
+            </div>
+          </button>
           <button onClick={onClose} className="ml-auto text-sidebar-foreground hover:text-white lg:hidden">
             <X className="h-4 w-4" />
           </button>

@@ -32,6 +32,22 @@
   }
 }
 
+/* CareMap portal shell — warm-paper design system (UI spec §2).
+   Scoped to .portal so the existing dashboard theme is untouched. */
+.portal {
+  background: #FAF8F4;          /* --paper */
+  color: #1A1A1A;              /* --ink   */
+  font-family: 'Public Sans', Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.portal ::selection { background: #BFD0EE; }
+
+/* Risk-heat gradient meter (Meter primitive) */
+.meter-track {
+  background: linear-gradient(90deg, #C9E2BD 0%, #F2E1A6 50%, #F2C6BF 100%);
+}
+
 /* Leaflet map overrides */
 .leaflet-container {
   height: 100%;

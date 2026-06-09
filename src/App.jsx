@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Menu } from 'lucide-react'
 import { Activity } from 'lucide-react'
 import { StateProvider } from '@/context/StateContext'
+import { CountyDataProvider } from '@/context/CountyDataContext'
 import Sidebar from '@/components/Sidebar'
 import FindCare from '@/components/FindCare'
 import CountyHealth from '@/components/CountyHealth'
@@ -13,6 +14,13 @@ import PersonalRisk from '@/components/PersonalRisk'
 import EmployerDashboard from '@/components/EmployerDashboard'
 import CompareStates from '@/components/CompareStates'
 import Footer from '@/components/Footer'
+import Home from '@/components/Home'
+import TopNav from '@/components/TopNav'
+import PortalFooter from '@/components/PortalFooter'
+import FindCarePortal from '@/components/FindCarePortal'
+import ProviderDetail from '@/components/ProviderDetail'
+import LocalRisk from '@/components/LocalRisk'
+import AboutPortal from '@/components/AboutPortal'
 
 const NO_FOOTER = new Set(['map', 'compare'])
 
@@ -28,8 +36,8 @@ const PAGE_TITLES = {
   compare:   'Compare States',
 }
 
-function AppInner() {
-  const [activeTab,    setActiveTab]    = useState('find')
+function AppInner({ initialTab = 'find', onGoHome }) {
+  const [activeTab,    setActiveTab]    = useState(initialTab)
   const [sidebarOpen,  setSidebarOpen]  = useState(false)
 
   const handleTabChange = (tab) => {
@@ -50,6 +58,7 @@ function AppInner() {
       <Sidebar
         activeTab={activeTab}
         onTabChange={handleTabChange}
+        onGoHome={onGoHome}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -64,14 +73,14 @@ function AppInner() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex items-center gap-2">
+          <button onClick={onGoHome} className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
               <Activity className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
             </div>
             <span className="font-bold text-sm text-foreground">
               CareMap <span className="text-primary">Iowa</span>
             </span>
-          </div>
+          </button>
           <span className="ml-auto text-xs font-medium text-muted-foreground">
             {PAGE_TITLES[activeTab]}
           </span>
@@ -99,10 +108,74 @@ function AppInner() {
   )
 }
 
+// Which top-nav link is highlighted for a given route.
+const NAV_FOR_ROUTE = {
+  home: 'home', find: 'find', provider: 'find', local: 'local', about: 'about',
+}
+
+// Routes that render full-height (their own internal scroll) → no portal footer.
+const FULL_HEIGHT = new Set(['find'])
+
+// Portal shell (UI spec §2): sticky top nav + screen + portal footer.
+function PortalShell({ route, onNavigate, children }) {
+  const full = FULL_HEIGHT.has(route)
+  return (
+    <div className="portal flex h-screen flex-col overflow-y-auto">
+      <TopNav active={NAV_FOR_ROUTE[route] || 'home'} onNavigate={onNavigate} />
+      <main className="flex-1">{children}</main>
+      {!full && <PortalFooter />}
+    </div>
+  )
+}
+
+// Portal-native screens (rebuilt against the wireframes).
+const PORTAL_ROUTES = new Set(['home', 'find', 'provider', 'local', 'about'])
+// Legacy sidebar dashboard tabs, still reachable from portal CTAs.
+const DASHBOARD_TABS = new Set([
+  'county', 'hospitals', 'rankings', 'map', 'forecast', 'risk', 'employer', 'compare',
+])
+
+function Root() {
+  const initial = typeof location !== 'undefined' ? location.hash.replace('#', '') : ''
+  const [route, setRoute] = useState(
+    PORTAL_ROUTES.has(initial) || DASHBOARD_TABS.has(initial) ? initial : 'home',
+  )
+  const [county, setCounty] = useState('Polk')      // selected Local Risk county
+  const [provider, setProvider] = useState(null)    // selected provider for detail
+
+  // Reflect route in the URL hash so screens are deep-linkable / shareable.
+  useEffect(() => {
+    if (typeof location !== 'undefined') location.hash = route === 'home' ? '' : route
+  }, [route])
+
+  const navigate = (id) => {
+    if (PORTAL_ROUTES.has(id) || DASHBOARD_TABS.has(id)) setRoute(id)
+    else setRoute('home')
+  }
+  const openCounty = (name) => { if (name) setCounty(name); setRoute('local') }
+  const openProvider = (p) => { setProvider(p); setRoute('provider') }
+
+  if (DASHBOARD_TABS.has(route)) {
+    return <AppInner initialTab={route} onGoHome={() => setRoute('home')} />
+  }
+
+  return (
+    <PortalShell route={route} onNavigate={navigate}>
+      {route === 'home' && <Home onNavigate={navigate} onOpenCounty={openCounty} />}
+      {route === 'find' && <FindCarePortal onOpenProvider={openProvider} />}
+      {route === 'provider' && <ProviderDetail provider={provider} onBack={() => setRoute('find')} onOpenCounty={openCounty} />}
+      {route === 'local' && <LocalRisk countyName={county} onNavigate={navigate} onCountyChange={setCounty} />}
+      {route === 'about' && <AboutPortal onNavigate={navigate} />}
+    </PortalShell>
+  )
+}
+
 export default function App() {
   return (
     <StateProvider>
-      <AppInner />
+      <CountyDataProvider>
+        <Root />
+      </CountyDataProvider>
     </StateProvider>
   )
 }
