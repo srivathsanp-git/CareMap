@@ -79,7 +79,7 @@ function AppInner({ initialTab = 'find', onGoHome }) {
               <Activity className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
             </div>
             <span className="font-bold text-sm text-foreground">
-              CareMap <span className="text-primary">Iowa</span>
+              caremap<span className="text-primary">.ai</span>
             </span>
           </button>
           <span className="ml-auto text-xs font-medium text-muted-foreground">

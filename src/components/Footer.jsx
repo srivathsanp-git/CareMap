@@ -19,7 +19,7 @@ export default function Footer() {
               <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
                 <Activity className="w-3.5 h-3.5 text-primary-foreground" />
               </div>
-              <span className="text-foreground font-bold">CareMap Iowa</span>
+              <span className="text-foreground font-bold">caremap.ai</span>
             </div>
             <p className="text-sm leading-relaxed">
               Helping identify care gaps in Iowa using publicly available federal and state data.
@@ -59,7 +59,7 @@ export default function Footer() {
 
         <Separator className="mb-6" />
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-          <p>© 2024 CareMap Iowa · Open source · Public data</p>
+          <p>© 2026 caremap.ai · Public data</p>
           <p>Provider data: CMS NPI Registry (live) · Health data: CDC PLACES 2023</p>
         </div>
       </div>

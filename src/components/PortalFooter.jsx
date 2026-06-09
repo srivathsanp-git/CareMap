@@ -16,7 +16,7 @@ export default function PortalFooter() {
           {/* Brand blurb */}
           <div className="col-span-2 md:col-span-1">
             <div className="font-display text-2xl font-semibold text-ink">
-              CareMap<span className="text-risk">.</span>ia
+              caremap<span className="text-risk">.</span>ai
             </div>
             <p className="mt-2 max-w-[15rem] text-sm leading-relaxed text-ink2">
               Public health data, made useful · made in Iowa. Free, public sources only.
@@ -38,7 +38,7 @@ export default function PortalFooter() {
         </div>
 
         <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-ink/10 pt-5 font-mono text-[11px] text-sand sm:flex-row sm:items-center">
-          <span>© 2026 CareMap Iowa · Built on public U.S. government data (CDC · Census · CMS · HRSA)</span>
+          <span>© 2026 caremap.ai · Built on public U.S. government data (CDC · Census · CMS · HRSA)</span>
           <span>last data refresh: {LAST_REFRESH}</span>
         </div>
       </div>

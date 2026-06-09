@@ -20,7 +20,7 @@ export default function TopNav({ active = 'home', onNavigate }) {
           onClick={() => onNavigate?.('home')}
           className="font-display text-2xl font-semibold tracking-tight text-ink"
         >
-          CareMap<span className="text-risk">.</span>ia
+          caremap<span className="text-risk">.</span>ai
         </button>
 
         {/* Center links */}
