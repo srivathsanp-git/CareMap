@@ -112,7 +112,8 @@ function AppInner({ initialTab = 'find', onGoHome }) {
 // Which top-nav link is highlighted for a given route.
 const NAV_FOR_ROUTE = {
   home: 'home', find: 'find', provider: 'find', local: 'local',
-  resources: 'resources', about: 'about',
+  resources: 'resources', forecast: 'forecast', risk: 'risk',
+  employer: 'employer', about: 'about',
 }
 
 // Routes that render full-height (their own internal scroll) → no portal footer.
@@ -130,11 +131,14 @@ function PortalShell({ route, onNavigate, children }) {
   )
 }
 
-// Portal-native screens (rebuilt against the wireframes).
-const PORTAL_ROUTES = new Set(['home', 'find', 'provider', 'local', 'resources', 'about'])
+// Portal-native screens (rebuilt against the wireframes) + legacy components
+// surfaced into the portal shell via thin wrappers (forecast / risk / employer).
+const PORTAL_ROUTES = new Set([
+  'home', 'find', 'provider', 'local', 'resources', 'forecast', 'risk', 'employer', 'about',
+])
 // Legacy sidebar dashboard tabs, still reachable from portal CTAs.
 const DASHBOARD_TABS = new Set([
-  'county', 'hospitals', 'rankings', 'map', 'forecast', 'risk', 'employer', 'compare',
+  'county', 'hospitals', 'rankings', 'map', 'compare',
 ])
 
 function Root() {
@@ -169,7 +173,52 @@ function Root() {
       {route === 'local' && <LocalRisk countyName={county} onNavigate={navigate} onCountyChange={setCounty} />}
       {route === 'resources' && <Resources onNavigate={navigate} onOpenCounty={openCounty} />}
       {route === 'about' && <AboutPortal onNavigate={navigate} />}
+      {route === 'forecast' && <ForecastWrapper onNavigate={navigate} />}
+      {route === 'risk' && <PersonalRiskWrapper onNavigate={navigate} />}
+      {route === 'employer' && <EmployerWrapper onNavigate={navigate} />}
     </PortalShell>
+  )
+}
+
+// Thin wrappers that surface the legacy ForecastEngine / PersonalRisk /
+// EmployerDashboard components inside the portal shell (warm-paper background,
+// max-width padding, breadcrumb) without modifying the components themselves.
+function ForecastWrapper({ onNavigate }) {
+  return (
+    <div className="mx-auto max-w-[1280px] px-8 pb-16">
+      <div className="flex items-center gap-1.5 pt-4 font-mono text-[11px] uppercase tracking-wider text-sand">
+        <button onClick={() => onNavigate?.('home')} className="hover:text-ink">Home</button>
+        <span>›</span>
+        <span className="text-ink">Forecast & Alerts</span>
+      </div>
+      <ForecastEngine />
+    </div>
+  )
+}
+
+function PersonalRiskWrapper({ onNavigate }) {
+  return (
+    <div className="mx-auto max-w-[1280px] px-8 pb-16">
+      <div className="flex items-center gap-1.5 pt-4 font-mono text-[11px] uppercase tracking-wider text-sand">
+        <button onClick={() => onNavigate?.('home')} className="hover:text-ink">Home</button>
+        <span>›</span>
+        <span className="text-ink">My Risk Profile</span>
+      </div>
+      <PersonalRisk />
+    </div>
+  )
+}
+
+function EmployerWrapper({ onNavigate }) {
+  return (
+    <div className="mx-auto max-w-[1280px] px-8 pb-16">
+      <div className="flex items-center gap-1.5 pt-4 font-mono text-[11px] uppercase tracking-wider text-sand">
+        <button onClick={() => onNavigate?.('home')} className="hover:text-ink">Home</button>
+        <span>›</span>
+        <span className="text-ink">Employer Dashboard</span>
+      </div>
+      <EmployerDashboard />
+    </div>
   )
 }
 

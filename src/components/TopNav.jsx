@@ -8,6 +8,9 @@ const LINKS = [
   { id: 'find',  label: 'Find Care',  live: true },
   { id: 'local', label: 'Local Risk', live: true },
   { id: 'resources', label: 'Resources', live: true },
+  { id: 'forecast', label: 'Forecast',  live: true },
+  { id: 'risk',     label: 'My Risk',   live: true },
+  { id: 'employer', label: 'Employers', live: true },
   { id: 'about', label: 'About',      live: true },
 ]
 
