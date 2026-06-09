@@ -1,23 +1,18 @@
 import { useState } from 'react'
-import { User, MapPin, ChevronRight, Loader2 } from 'lucide-react'
+import { MapPin, ChevronRight, Loader2 } from 'lucide-react'
 import { iowaCounties, IOWA_AVERAGES } from '../data/iowaCounties'
 import { AGE_MULTIPLIERS, SEX_MULTIPLIERS, personalRisk } from '../utils/forecast'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
+import { Pill } from '@/components/ui/pill'
 
 const AGE_GROUPS  = ['18-34', '35-49', '50-64', '65+']
 const SEX_OPTIONS = ['Male', 'Female', 'Prefer not to say']
+const CARD = 'rounded-lg border border-ink/15 bg-paper'
 
 const METRICS = [
-  { key: 'diabetes',    label: 'Diabetes Risk',       icon: '🩸', color: '#ef4444', indicatorCls: 'bg-red-500'    },
-  { key: 'obesity',     label: 'Obesity / Metabolic', icon: '⚖️', color: '#f97316', indicatorCls: 'bg-orange-500' },
-  { key: 'smoking',     label: 'Tobacco Use',         icon: '🚬', color: '#64748b', indicatorCls: 'bg-slate-500'  },
-  { key: 'mentalHealth',label: 'Poor Mental Health',  icon: '🧠', color: '#8b5cf6', indicatorCls: 'bg-violet-500' },
+  { key: 'diabetes',     label: 'Diabetes risk' },
+  { key: 'obesity',      label: 'Obesity / metabolic' },
+  { key: 'smoking',      label: 'Tobacco use' },
+  { key: 'mentalHealth', label: 'Poor mental health' },
 ]
 
 async function lookupCountyFromZip(zip) {
@@ -31,12 +26,22 @@ async function lookupCountyFromZip(zip) {
   return iowaCounties.find(c => c.name.toLowerCase() === name.toLowerCase()) ?? null
 }
 
+// Risk level vs Iowa average → portal styling (chip variant + bar/level color).
 function riskLevel(personal, avg) {
   const r = personal / avg
-  if (r >= 1.4)  return { label: 'High Risk',     variant: 'danger',   emoji: '🔴' }
-  if (r >= 1.15) return { label: 'Above Average', variant: 'orange',   emoji: '🟠' }
-  if (r >= 0.85) return { label: 'Average',       variant: 'warning',  emoji: '🟡' }
-  return               { label: 'Below Average', variant: 'success',  emoji: '🟢' }
+  if (r >= 1.4)  return { label: 'High risk',     swatch: 'bg-heat-high', text: 'text-risk', variant: 'risk' }
+  if (r >= 1.15) return { label: 'Above average', swatch: 'bg-heat-high', text: 'text-risk', variant: 'risk' }
+  if (r >= 0.85) return { label: 'Average',       swatch: 'bg-heat-mid',  text: 'text-ink2', variant: 'default' }
+  return               { label: 'Below average', swatch: 'bg-heat-low',  text: 'text-ok',   variant: 'action' }
+}
+
+// Inline portal progress bar.
+function Bar({ pct, className = 'bg-ink' }) {
+  return (
+    <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink/10">
+      <div className={`h-full rounded-full ${className}`} style={{ width: `${Math.min(100, pct)}%` }} />
+    </div>
+  )
 }
 
 export default function PersonalRisk() {
@@ -64,175 +69,150 @@ export default function PersonalRisk() {
     setLoading(false)
   }
 
+  const Choice = ({ active, children, ...props }) => (
+    <button type="button" {...props}
+      className={`rounded-lg border py-2.5 text-sm font-medium transition-colors ${active ? 'border-action bg-action/10 text-action' : 'border-ink/20 text-ink2 hover:border-ink/40'}`}>
+      {children}
+    </button>
+  )
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b border-border bg-card px-6 py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-2 mb-1">
-            <User className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-bold">Personal Health Risk Profile</h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Compare your estimated health risks to your local county and Iowa averages using age- and sex-adjusted epidemiological multipliers.
-          </p>
-        </div>
+    <div className="pb-4">
+      {/* Hero */}
+      <div className="mt-3">
+        <div className="font-mono text-[11px] uppercase tracking-wider text-sand">My risk profile</div>
+        <h1 className="mt-1 font-display text-5xl font-semibold leading-none text-ink">Your health risk.</h1>
+        <p className="mt-2 max-w-2xl text-ink2">
+          Compare your estimated health risks to your county and Iowa averages, using age- and sex-adjusted
+          epidemiological multipliers. Nothing is stored — it all runs in your browser.
+        </p>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="mt-6 max-w-3xl">
         {step === 1 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Enter your information</CardTitle>
-              <CardDescription>No data is stored. All calculations happen in your browser.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Age group */}
-                <div>
-                  <p className="text-sm font-semibold mb-2">Age Group</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {AGE_GROUPS.map(g => (
-                      <button key={g} type="button" onClick={() => setAgeGroup(g)}
-                        className={['rounded-xl border-2 py-2.5 text-sm font-semibold transition-colors', ageGroup === g ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:border-border/80'].join(' ')}>
-                        {g}
-                      </button>
-                    ))}
-                  </div>
+          <div className={`${CARD} p-6`}>
+            <div className="font-display text-xl font-semibold text-ink">Enter your information</div>
+            <p className="mt-1 text-sm text-ink2">No data is stored. All calculations happen in your browser.</p>
+
+            <form onSubmit={handleSubmit} className="mt-5 space-y-6">
+              <div>
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-sand">Age group</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {AGE_GROUPS.map(g => <Choice key={g} active={ageGroup === g} onClick={() => setAgeGroup(g)}>{g}</Choice>)}
                 </div>
+              </div>
 
-                {/* Sex */}
-                <div>
-                  <p className="text-sm font-semibold mb-2">Sex</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {SEX_OPTIONS.map(s => (
-                      <button key={s} type="button" onClick={() => setSex(s)}
-                        className={['rounded-xl border-2 py-2.5 text-sm font-semibold transition-colors', sex === s ? 'border-primary bg-primary/5 text-primary' : 'border-border text-muted-foreground hover:border-border/80'].join(' ')}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
+              <div>
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-sand">Sex</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {SEX_OPTIONS.map(s => <Choice key={s} active={sex === s} onClick={() => setSex(s)}>{s}</Choice>)}
                 </div>
+              </div>
 
-                {/* ZIP */}
-                <div>
-                  <p className="text-sm font-semibold mb-2">Iowa ZIP Code</p>
-                  <div className="relative w-full sm:w-48">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="text" inputMode="numeric" maxLength={5} value={zip}
-                      onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                      placeholder="e.g. 50266" className={['pl-9', error ? 'border-destructive' : ''].join(' ')} />
-                  </div>
-                  {error && <Alert variant="destructive" className="mt-2"><AlertDescription>{error}</AlertDescription></Alert>}
+              <div>
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-sand">Iowa ZIP code</p>
+                <div className="relative w-full sm:w-52">
+                  <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sand" />
+                  <input type="text" inputMode="numeric" maxLength={5} value={zip}
+                    onChange={e => setZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                    placeholder="e.g. 50266"
+                    className={`h-10 w-full rounded-lg border bg-paper pl-9 pr-3 text-sm text-ink placeholder:text-sand focus:outline-none ${error ? 'border-risk' : 'border-ink/20'}`} />
                 </div>
+                {error && <p className="mt-2 text-sm text-risk">{error}</p>}
+              </div>
 
-                <Button type="submit" disabled={!canSubmit || loading} size="lg" className="w-full sm:w-auto">
-                  {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Looking up county…</> : <>Calculate My Risk <ChevronRight className="h-4 w-4" /></>}
-                </Button>
-              </form>
+              <button type="submit" disabled={!canSubmit || loading}
+                className="inline-flex items-center gap-1.5 rounded-full bg-action px-5 py-2.5 text-sm font-medium text-white hover:bg-action/90 disabled:opacity-40">
+                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Looking up county…</> : <>Calculate my risk <ChevronRight className="h-4 w-4" /></>}
+              </button>
+            </form>
 
-              <Separator className="my-6" />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <strong>Disclaimer:</strong> Uses age- and sex-adjusted population-level multipliers (CDC NHANES, BRFSS).
-                Results are statistical estimates for educational purposes only — not medical advice.
-              </p>
-            </CardContent>
-          </Card>
+            <p className="mt-6 border-t border-ink/10 pt-4 font-mono text-[11px] leading-relaxed text-sand">
+              Disclaimer: uses age- and sex-adjusted population-level multipliers (CDC NHANES, BRFSS). Results are
+              statistical estimates for educational purposes only — not medical advice.
+            </p>
+          </div>
         )}
 
         {step === 2 && county && risks && (
-          <div className="space-y-5">
-            <Card>
-              <CardContent className="pt-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-extrabold">Your Risk Profile</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{ageGroup} · {sex} · {county.name} County (ZIP {zip})</p>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setStep(1); setCounty(null); setRisks(null); setError('') }}>
-                    ← Start over
-                  </Button>
+          <div className="space-y-4">
+            <div className={`${CARD} p-5`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-display text-2xl font-semibold text-ink">Your risk profile</div>
+                  <p className="mt-1 font-mono text-[11px] uppercase tracking-wide text-sand">{ageGroup} · {sex} · {county.name} County · ZIP {zip}</p>
                 </div>
-                <Separator className="my-3" />
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <Badge variant="secondary">📍 {county.name} County · {county.pop.toLocaleString()}</Badge>
-                  <Badge variant="secondary">🏥 {county.providerDensity.toFixed(1)} providers/1k</Badge>
-                  <Badge variant="secondary">💰 ${county.acaPremium}/mo ACA premium</Badge>
-                </div>
-              </CardContent>
-            </Card>
+                <button onClick={() => { setStep(1); setCounty(null); setRisks(null); setError('') }}
+                  className="rounded-full border border-ink/25 px-4 py-2 text-sm font-medium text-ink hover:bg-ink/5">Start over</button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Pill size="sm">{county.name} County · {county.pop.toLocaleString()}</Pill>
+                <Pill size="sm">{county.providerDensity.toFixed(1)} providers/1k</Pill>
+                <Pill size="sm">${county.acaPremium}/mo ACA premium</Pill>
+              </div>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {METRICS.map(m => {
                 const personal = risks[m.key], countyVal = county[m.key], iowaVal = IOWA_AVERAGES[m.key]
                 const lvl = riskLevel(personal, iowaVal)
                 const maxVal = Math.max(personal, countyVal, iowaVal, 5) * 1.3
+                const rows = [
+                  { label: 'Your est. risk', value: personal, cls: 'bg-ink' },
+                  { label: 'County avg',     value: countyVal, cls: 'bg-ink/40' },
+                  { label: 'Iowa avg',       value: iowaVal,   cls: 'bg-sand' },
+                ]
                 return (
-                  <Card key={m.key}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <span>{m.icon}</span> {m.label}
-                        </CardTitle>
-                        <Badge variant={lvl.variant}>{lvl.emoji} {lvl.label}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-3xl font-extrabold mb-4" style={{ color: m.color }}>
-                        {personal.toFixed(1)}<span className="text-base font-normal text-muted-foreground ml-1">%</span>
-                      </p>
-                      <div className="space-y-2">
-                        {[
-                          { label: 'Your est. risk', value: personal, bold: true },
-                          { label: 'County avg',     value: countyVal },
-                          { label: 'Iowa avg',       value: iowaVal,  muted: true },
-                        ].map(row => (
-                          <div key={row.label} className="flex items-center gap-2">
-                            <span className={['text-[10px] w-20 text-right shrink-0', row.muted ? 'text-muted-foreground' : row.bold ? 'font-semibold text-foreground' : 'text-muted-foreground'].join(' ')}>
-                              {row.label}
-                            </span>
-                            <Progress value={(row.value / maxVal) * 100} className="flex-1 h-2"
-                              indicatorClassName={row.bold ? m.indicatorCls : row.muted ? 'bg-slate-300' : `${m.indicatorCls} opacity-50`} />
-                            <span className={['text-xs font-bold w-10 text-right', row.bold ? 'text-foreground' : 'text-muted-foreground'].join(' ')}>
-                              {row.value.toFixed(1)}%
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <div key={m.key} className={`${CARD} p-4`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-mono text-[11px] uppercase tracking-wide text-sand">{m.label}</div>
+                      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide">
+                        <span className={`h-2.5 w-2.5 rounded-sm border border-ink/30 ${lvl.swatch}`} />
+                        <span className={lvl.text}>{lvl.label}</span>
+                      </span>
+                    </div>
+                    <div className="mt-2 font-display text-3xl font-semibold text-ink">
+                      {personal.toFixed(1)}<span className="text-base font-normal text-sand">%</span>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {rows.map(row => (
+                        <div key={row.label} className="flex items-center gap-2">
+                          <span className="w-20 shrink-0 text-right font-mono text-[10px] text-sand">{row.label}</span>
+                          <Bar pct={(row.value / maxVal) * 100} className={row.cls} />
+                          <span className="w-10 shrink-0 text-right font-mono text-xs text-ink">{row.value.toFixed(1)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )
               })}
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">What this means for you</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <div className={`${CARD} p-5`}>
+              <div className="font-display text-lg font-semibold text-ink">What this means for you</div>
+              <div className="mt-3 space-y-3">
                 {METRICS.map(m => {
                   const lvl = riskLevel(risks[m.key], IOWA_AVERAGES[m.key])
-                  if (lvl.label === 'Below Average') return null
+                  if (lvl.label === 'Below average') return null
                   return (
-                    <div key={m.key} className="flex items-start gap-3 text-sm">
-                      <span className="text-lg shrink-0">{m.icon}</span>
-                      <div>
-                        <span className="font-semibold">{m.label}: </span>
-                        <span className="text-muted-foreground">
-                          {lvl.label === 'High Risk' ? 'Significantly elevated — proactive screening recommended.' :
-                           lvl.label === 'Above Average' ? 'Moderately elevated — discuss with your provider.' :
-                           'Near average — maintain current health habits.'}
-                        </span>
-                      </div>
+                    <div key={m.key} className="text-sm">
+                      <span className="font-semibold text-ink">{m.label}: </span>
+                      <span className="text-ink2">
+                        {lvl.label === 'High risk' ? 'Significantly elevated — proactive screening recommended.' :
+                         lvl.label === 'Above average' ? 'Moderately elevated — discuss with your provider.' :
+                         'Near average — maintain current health habits.'}
+                      </span>
                     </div>
                   )
                 }).filter(Boolean)}
-                {METRICS.every(m => riskLevel(risks[m.key], IOWA_AVERAGES[m.key]).label === 'Below Average') && (
-                  <p className="text-green-700 font-medium text-sm">✅ Your risk profile is below Iowa average across all measured indicators.</p>
+                {METRICS.every(m => riskLevel(risks[m.key], IOWA_AVERAGES[m.key]).label === 'Below average') && (
+                  <p className="text-sm font-medium text-ok">Your risk profile is below the Iowa average across all measured indicators.</p>
                 )}
-                <Separator />
-                <p className="text-xs text-muted-foreground">Estimates use age/sex multipliers from CDC NHANES and BRFSS. Not medical advice.</p>
-              </CardContent>
-            </Card>
+                <p className="border-t border-ink/10 pt-3 font-mono text-[11px] text-sand">
+                  Estimates use age/sex multipliers from CDC NHANES and BRFSS. Not medical advice.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>
