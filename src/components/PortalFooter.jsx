@@ -38,7 +38,7 @@ export default function PortalFooter() {
         </div>
 
         <div className="mt-10 flex flex-col items-start justify-between gap-2 border-t border-ink/10 pt-5 font-mono text-[11px] text-sand sm:flex-row sm:items-center">
-          <span>© 2026 · MIT licensed · data licensed CC BY 4.0</span>
+          <span>© 2026 CareMap Iowa · Built on public U.S. government data (CDC · Census · CMS · HRSA)</span>
           <span>last data refresh: {LAST_REFRESH}</span>
         </div>
       </div>

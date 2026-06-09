@@ -106,8 +106,9 @@ export default function AboutPortal({ onNavigate }) {
           <div className={`${CARD} p-4`}>
             <div className="font-mono text-[11px] uppercase tracking-wide text-ink">Team & funding</div>
             <p className="mt-2 text-sm leading-relaxed text-ink2">
-              An open-source project built on public data for consumers, researchers, and community health
-              advocates. No commercial sponsors — data is licensed CC BY 4.0; the code is MIT.
+              A project built on public data for consumers, researchers, and community health advocates.
+              No commercial sponsors. All figures come from public U.S. government sources (CDC, Census,
+              CMS, HRSA).
             </p>
           </div>
         </div>
