@@ -15,7 +15,7 @@ const POPULAR = ['Primary care', 'Mental health', 'Pediatrics', 'Dental', 'Urgen
 const TASKS = [
   { icon: Stethoscope, title: 'Find a provider', desc: 'Real NPI records by specialty, ZIP, and distance.', cta: 'Find care', route: 'find', primary: true },
   { icon: Activity,    title: "See my county's health", desc: 'CDC PLACES + ACS metrics, ranked across Iowa.', cta: 'Open dashboard', route: 'local' },
-  { icon: Building2,   title: 'Compare hospitals', desc: 'CMS Care Compare star ratings & trauma level.', cta: 'Compare', route: 'hospitals' },
+  { icon: Building2,   title: 'Compare hospitals', desc: 'CMS Care Compare star ratings & trauma level.', cta: 'Compare', route: 'resources' },
 ]
 
 const CARD = 'rounded-lg border border-ink/15 bg-paper'

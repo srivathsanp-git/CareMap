@@ -167,7 +167,7 @@ export default function LocalRisk({ countyName = 'Polk', onNavigate, onCountyCha
               <div className="mt-2 font-display text-[15px] font-semibold text-ink">Find a doctor</div>
               <div className="mt-1 inline-flex items-center gap-1 font-mono text-[11px] text-action">search NPI <ArrowRight className="h-3 w-3" /></div>
             </button>
-            <button onClick={() => onNavigate?.('hospitals')} className={`${CARD} flex-1 p-3 text-left hover:border-ink/40`}>
+            <button onClick={() => onNavigate?.('resources')} className={`${CARD} flex-1 p-3 text-left hover:border-ink/40`}>
               <HeartHandshake className="h-5 w-5 text-action" />
               <div className="mt-2 font-display text-[15px] font-semibold text-ink">Compare hospitals</div>
               <div className="mt-1 inline-flex items-center gap-1 font-mono text-[11px] text-action">CMS ratings <ArrowRight className="h-3 w-3" /></div>

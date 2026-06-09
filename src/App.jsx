@@ -21,6 +21,7 @@ import FindCarePortal from '@/components/FindCarePortal'
 import ProviderDetail from '@/components/ProviderDetail'
 import LocalRisk from '@/components/LocalRisk'
 import AboutPortal from '@/components/AboutPortal'
+import Resources from '@/components/Resources'
 
 const NO_FOOTER = new Set(['map', 'compare'])
 
@@ -110,7 +111,8 @@ function AppInner({ initialTab = 'find', onGoHome }) {
 
 // Which top-nav link is highlighted for a given route.
 const NAV_FOR_ROUTE = {
-  home: 'home', find: 'find', provider: 'find', local: 'local', about: 'about',
+  home: 'home', find: 'find', provider: 'find', local: 'local',
+  resources: 'resources', about: 'about',
 }
 
 // Routes that render full-height (their own internal scroll) → no portal footer.
@@ -129,7 +131,7 @@ function PortalShell({ route, onNavigate, children }) {
 }
 
 // Portal-native screens (rebuilt against the wireframes).
-const PORTAL_ROUTES = new Set(['home', 'find', 'provider', 'local', 'about'])
+const PORTAL_ROUTES = new Set(['home', 'find', 'provider', 'local', 'resources', 'about'])
 // Legacy sidebar dashboard tabs, still reachable from portal CTAs.
 const DASHBOARD_TABS = new Set([
   'county', 'hospitals', 'rankings', 'map', 'forecast', 'risk', 'employer', 'compare',
@@ -165,6 +167,7 @@ function Root() {
       {route === 'find' && <FindCarePortal onOpenProvider={openProvider} />}
       {route === 'provider' && <ProviderDetail provider={provider} onBack={() => setRoute('find')} onOpenCounty={openCounty} />}
       {route === 'local' && <LocalRisk countyName={county} onNavigate={navigate} onCountyChange={setCounty} />}
+      {route === 'resources' && <Resources onNavigate={navigate} onOpenCounty={openCounty} />}
       {route === 'about' && <AboutPortal onNavigate={navigate} />}
     </PortalShell>
   )
