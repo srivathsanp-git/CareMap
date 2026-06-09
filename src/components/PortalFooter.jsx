@@ -1,8 +1,6 @@
 // Portal footer (UI spec §2): 4-column (Product / Data / Org + brand blurb)
 // with a "last data refresh" line. Link items carry a `route` (internal portal
 // navigation) or `href` (external); plain strings render as inert labels.
-const REPO_URL = 'https://github.com/srivathsanp-git/CareMap'
-
 const COLS = [
   { head: 'Product', links: [
     { label: 'Find Care',        route: 'find' },
@@ -14,7 +12,6 @@ const COLS = [
     { label: 'Sources',       route: 'about' },
     { label: 'Methodology',   route: 'about' },
     { label: 'CSV downloads', route: 'resources' },
-    { label: 'Source code',   href: REPO_URL },
   ] },
   { head: 'Org', links: ['About', 'Press', 'Contact', 'Open source'] },
 ]
